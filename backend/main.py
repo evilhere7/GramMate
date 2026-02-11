@@ -30,11 +30,19 @@ from jose import JWTError, jwt
 
 # Third-party integrations
 import stripe
-from plaid import ApiClient
-from plaid.api.plaid_api import PlaidApi
-from plaid.model.client_name import ClientName
-from plaid.model.country_code import CountryCode
-from plaid.model.language import Language
+try:
+    from plaid import ApiClient
+    from plaid.api.plaid_api import PlaidApi
+    from plaid.model.client_name import ClientName
+    from plaid.model.country_code import CountryCode
+    from plaid.model.language import Language
+except Exception:
+    ApiClient = None
+    PlaidApi = None
+    ClientName = None
+    CountryCode = None
+    Language = None
+    logging.getLogger(__name__).warning("Plaid SDK not available; Plaid features disabled in this environment")
 
 # Config
 import os
