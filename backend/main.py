@@ -815,8 +815,10 @@ async def withdraw(
     db.commit()
 
     logger.info(
-        f"Withdrawal initiated: {transaction_id} for {
-            withdrawal.amount_cents}¢")
+        "Withdrawal initiated: %s for %s¢",
+        transaction_id,
+        withdrawal.amount_cents,
+    )
 
     return {
         "transaction_id": transaction_id,
