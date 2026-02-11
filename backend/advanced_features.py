@@ -122,7 +122,8 @@ class FraudDetector:
 
         if view_count > 0:
             engagement_rate = like_count / view_count
-            if engagement_rate > self.suspicious_patterns['bot_like_engagement']:
+            threshold = self.suspicious_patterns['bot_like_engagement']
+            if engagement_rate > threshold:
                 score += 50
                 risk_factors.append(
                     "Suspiciously high engagement rate (bot activity)")
@@ -240,8 +241,11 @@ class ContentModerator:
     """Content moderation and flagging system"""
 
     def __init__(self):
+        # Replace with actual keywords
         self.banned_keywords = [
-            'explicit1', 'explicit2', 'hateful1'  # Replace with actual keywords
+            'explicit1',
+            'explicit2',
+            'hateful1',
         ]
         self.nsfw_confidence_threshold = 0.8
 
@@ -298,10 +302,10 @@ async def get_video_analytics(video_id: str):
     stats = analytics_engine.get_video_stats(video_id)
     views = stats.get('views', 0)
     if views > 0:
-        engagement_rate = (
-            (stats.get('likes', 0) + stats.get('comments', 0) + stats.get('shares', 0))
-            / max(views, 1)
-        )
+        likes = stats.get('likes', 0)
+        comments = stats.get('comments', 0)
+        shares = stats.get('shares', 0)
+        engagement_rate = (likes + comments + shares) / max(views, 1)
     else:
         engagement_rate = 0
 

@@ -495,16 +495,24 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/verify-email")
-async def verify_email(current_user: User = Depends(get_current_user),
-                       db: Session = Depends(get_db)):
-    """Mark email as verified (simplified - no verification code needed for MVP)"""
+async def verify_email(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Mark email as verified (simplified - no verification code needed for MVP)
+    """
     current_user.email_verified = True
     current_user.creator_verified_tier = max(
-        1, current_user.creator_verified_tier)
+        1, current_user.creator_verified_tier
+    )
     db.commit()
 
     logger.info(f"Email verified: {current_user.email}")
-    return {"success": True, "message": "Email verified"}
+    return {
+        "success": True,
+        "message": "Email verified",
+    }
 
 # ====== USER ENDPOINTS ======
 
@@ -688,7 +696,12 @@ async def track_view(
     db.add(transaction)
     db.commit()
 
-    logger.info(f"View tracked: {video_id} by {current_user.id}, earned {reward_cents}¢")
+    logger.info(
+        "View tracked: %s by %s, earned %s¢",
+        video_id,
+        current_user.id,
+        reward_cents,
+    )
 
     return {
         "reward_earned_cents": reward_cents,
