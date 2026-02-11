@@ -3,12 +3,13 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY frontend/package*.json ./
 
-RUN npm ci --prefer-offline --no-audit
+COPY package*.json ./
 
-COPY frontend/src ./src
-COPY frontend/public ./public
+RUN npm install --no-audit --prefer-offline
+
+COPY src ./src
+COPY public ./public
 
 RUN npm run build
 
