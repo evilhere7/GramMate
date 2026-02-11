@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 # ====== CONFIG ======
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://user:password@localhost/grammate")
+    "sqlite:///:memory:")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
@@ -77,7 +77,18 @@ PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")
 stripe.api_key = STRIPE_API_KEY
 
 # ====== DATABASE ======
-engine = create_engine(DATABASE_URL, echo=True)
+# Handle SQLite vs PostgreSQL
+if "sqlite" in DATABASE_URL:
+    from sqlalchemy.pool import StaticPool
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=True
+    )
+else:
+    engine = create_engine(DATABASE_URL, echo=True)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -119,7 +130,8 @@ class Video(Base):
     thumbnail_url = Column(String(500), nullable=True)
     duration_seconds = Column(Integer, nullable=True)
     category = Column(String(50), nullable=True)
-    hashtags = Column(ARRAY(String), nullable=True)
+    # Use Text to store JSON array for SQLite compatibility
+    hashtags = Column(Text, nullable=True)  # Store as JSON string
     # processing, published, flagged, removed
     status = Column(String(20), default="processing")
     is_monetized = Column(Boolean, default=False)
@@ -403,17 +415,21 @@ app.add_middleware(
 
 # ====== ADVANCED FEATURES ROUTERS ======
 try:
-    from .advanced_features import (
-        router as analytics_router,
-        payouts_router,
-        fraud_router,
-        moderation_router,
-    )
-
-    app.include_router(analytics_router)
-    app.include_router(payouts_router)
-    app.include_router(fraud_router)
-    app.include_router(moderation_router)
+    import sys
+    import os
+    
+    # Add current directory to path for imports
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    
+    import advanced_features
+    
+    app.include_router(advanced_features.router)
+    app.include_router(advanced_features.payouts_router)
+    app.include_router(advanced_features.fraud_router)
+    app.include_router(advanced_features.moderation_router)
+    logger.info("Advanced features mounted successfully")
 except Exception as e:
     logger.warning(f"Advanced features not mounted: {e}")
 

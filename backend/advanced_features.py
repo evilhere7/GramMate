@@ -338,21 +338,28 @@ payouts_router = APIRouter(prefix="/payouts", tags=["payouts"])
 
 
 @payouts_router.post("/request")
-async def request_payout(amount_cents: int, db: Session = Depends(None)):
+async def request_payout(amount_cents: int, current_user=None):
     """Request a payout of current earnings"""
-    validation = payout_processor.validate_payout("user_id", amount_cents)
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    validation = payout_processor.validate_payout(current_user.id, amount_cents)
 
     if not validation['valid']:
         raise HTTPException(status_code=400, detail=validation['issues'][0])
 
-    result = payout_processor.process_stripe_payout("stripe_id", amount_cents)
+    result = payout_processor.process_stripe_payout(current_user.id, amount_cents)
     return result
 
 
 @payouts_router.get("/history")
-async def get_payout_history():
+async def get_payout_history(current_user=None):
     """Get user's payout history"""
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
     return {
+        'user_id': current_user.id,
         'payouts': [
             {
                 'id': 'payout_1',
