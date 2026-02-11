@@ -4,6 +4,7 @@ import AuthPage from './pages/AuthPage';
 import FeedPage from './pages/FeedPage';
 import WalletPage from './pages/WalletPage';
 import UploadPage from './pages/UploadPage';
+import CreatorProfilePage from './pages/CreatorProfilePage';
 
 const AppContainer = styled.div`
   width: 100%;
@@ -153,6 +154,12 @@ function App() {
         >
           Wallet (${walletBalance.toFixed(2)})
         </NavButton>
+        <NavButton 
+          active={currentPage === 'profile'} 
+          onClick={() => setCurrentPage('profile')}
+        >
+          Profile
+        </NavButton>
         <UserInfo>
           {user && (
             <>
@@ -167,6 +174,7 @@ function App() {
       {currentPage === 'feed' && <FeedPage token={token} onEarnings={fetchWallet} />}
       {currentPage === 'upload' && <UploadPage token={token} />}
       {currentPage === 'wallet' && <WalletPage token={token} onWithdraw={fetchWallet} />}
+      {currentPage === 'profile' && <CreatorProfilePage token={token} userId={localStorage.getItem('user_id')} />}
     </AppContainer>
   );
 }
