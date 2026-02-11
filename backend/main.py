@@ -237,13 +237,22 @@ class WithdrawalRequest(BaseModel):
     recipient_id: str
 
 # ====== UTILITY FUNCTIONS ======
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # bcrypt has a 72-byte input limit — truncate to avoid errors in some envs
+    if isinstance(password, str):
+        pw = password.encode("utf-8")[:72].decode("utf-8", "ignore")
+    else:
+        pw = password
+    return pwd_context.hash(pw)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    if isinstance(plain_password, str):
+        pw = plain_password.encode("utf-8")[:72].decode("utf-8", "ignore")
+    else:
+        pw = plain_password
+    return pwd_context.verify(pw, hashed_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
