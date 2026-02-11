@@ -18,7 +18,11 @@ def test_signup_and_login():
         data = res.json()
         assert 'access_token' in data
 
-        login_res = client.post('/auth/login', json={"email": email, "password": "TestPass123!"})
+        login_res = client.post(
+            '/auth/login',
+            json={
+                "email": email,
+                "password": "TestPass123!"})
         assert login_res.status_code == 200
         login_data = login_res.json()
         assert 'access_token' in login_data
