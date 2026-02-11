@@ -136,6 +136,8 @@ function FeedPage({ token, onEarnings }) {
   const [liked, setLiked] = useState(new Set());
 
   useEffect(() => {
+    // Load initial feed once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchFeed();
   }, []);
 
@@ -151,7 +153,7 @@ function FeedPage({ token, onEarnings }) {
         }
       );
       const data = await response.json();
-      setVideos(prev => [...prev, ...data.videos]);
+      if (data && data.videos) setVideos(prev => [...prev, ...data.videos]);
       setOffset(prev => prev + 20);
     } catch (err) {
       setError('Failed to load feed');
@@ -174,8 +176,8 @@ function FeedPage({ token, onEarnings }) {
           }
         }
       );
-      const data = await response.json();
-      
+      await response.json();
+
       if (response.ok) {
         setLiked(prev => new Set([...prev, videoId]));
         setVideos(prev => prev.map(v => 

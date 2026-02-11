@@ -326,6 +326,15 @@ function UploadPage({ token }) {
               <ProgressBar>
                 <div className="progress" style={{ width: `${progress}%` }}></div>
               </ProgressBar>
+              {filePreview && (
+                <div style={{ marginTop: '10px' }}>
+                  <video
+                    src={filePreview}
+                    controls
+                    style={{ width: '100%', borderRadius: '6px' }}
+                  />
+                </div>
+              )}
             </>
           )}
         </FormGroup>

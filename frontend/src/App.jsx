@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import AuthPage from './pages/AuthPage';
 import FeedPage from './pages/FeedPage';
@@ -71,15 +71,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
 
-  useEffect(() => {
-    if (token) {
-      // Fetch current user profile
-      fetchUserProfile();
-      fetchWallet();
-    }
-  }, [token]);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     if (!token) return;
     try {
       const userId = localStorage.getItem('user_id');
@@ -93,9 +85,9 @@ function App() {
     } catch (error) {
       console.error('Failed to fetch user:', error);
     }
-  };
+  }, [token]);
 
-  const fetchWallet = async () => {
+  const fetchWallet = useCallback(async () => {
     if (!token) return;
     try {
       const response = await fetch('http://localhost:8000/wallet', {
@@ -108,7 +100,15 @@ function App() {
     } catch (error) {
       console.error('Failed to fetch wallet:', error);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      // Fetch current user profile and wallet when token changes
+      fetchUserProfile();
+      fetchWallet();
+    }
+  }, [token, fetchUserProfile, fetchWallet]);
 
   const handleLogin = (loginToken, userId) => {
     setToken(loginToken);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 
 const WalletContainer = styled.div`
@@ -218,11 +218,7 @@ function WalletPage({ token }) {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchWalletData();
-  }, []);
-
-  const fetchWalletData = async () => {
+  const fetchWalletData = useCallback(async () => {
     setLoading(true);
     try {
       const [walletRes, transRes] = await Promise.all([
@@ -249,7 +245,11 @@ function WalletPage({ token }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchWalletData();
+  }, [fetchWalletData]);
 
   const handleWithdraw = async (e) => {
     e.preventDefault();

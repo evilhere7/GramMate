@@ -232,47 +232,49 @@ function CreatorProfilePage({ token, userId }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchCreatorData = async () => {
+      setLoading(true);
+      try {
+        const [profileRes, videosRes] = await Promise.all([
+          fetch(`http://localhost:8000/creators/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`http://localhost:8000/creators/${userId}/videos`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setProfile(profileData);
+        }
+
+        let videosData = [];
+        if (videosRes.ok) {
+          const parsed = await videosRes.json();
+          videosData = parsed.videos || [];
+          setVideos(videosData);
+        }
+
+        // Mock analytics data
+        setAnalytics({
+          avgEngagementRate: 5.2,
+          avgViewDuration: 45,
+          totalEarnings: 234.5,
+          weeklyEarnings: 45.75,
+          growthRate: 12.5,
+          topVideoViews: videosData[0]?.view_count || 0,
+        });
+      } catch (err) {
+        setError('Failed to load creator profile');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCreatorData();
-  }, []);
-
-  const fetchCreatorData = async () => {
-    setLoading(true);
-    try {
-      const [profileRes, videosRes] = await Promise.all([
-        fetch(`http://localhost:8000/creators/${userId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`http://localhost:8000/creators/${userId}/videos`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setProfile(profileData);
-      }
-
-      if (videosRes.ok) {
-        const videosData = await videosRes.json();
-        setVideos(videosData.videos || []);
-      }
-
-      // Mock analytics data
-      setAnalytics({
-        avgEngagementRate: 5.2,
-        avgViewDuration: 45,
-        totalEarnings: 234.50,
-        weeklyEarnings: 45.75,
-        growthRate: 12.5,
-        topVideoViews: videos[0]?.view_count || 0
-      });
-    } catch (err) {
-      setError('Failed to load creator profile');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [token, userId]);
 
   if (loading) {
     return (
