@@ -323,6 +323,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ====== ADVANCED FEATURES ROUTERS ======
+try:
+    from .advanced_features import (
+        router as analytics_router,
+        payouts_router,
+        fraud_router,
+        moderation_router,
+    )
+
+    app.include_router(analytics_router)
+    app.include_router(payouts_router)
+    app.include_router(fraud_router)
+    app.include_router(moderation_router)
+except Exception as e:
+    logger.warning(f"Advanced features not mounted: {e}")
+
 # ====== HEALTH CHECK ======
 @app.get("/health")
 async def health():
