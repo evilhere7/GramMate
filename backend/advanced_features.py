@@ -296,11 +296,18 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 async def get_video_analytics(video_id: str):
     """Get video performance analytics"""
     stats = analytics_engine.get_video_stats(video_id)
+    views = stats.get('views', 0)
+    if views > 0:
+        engagement_rate = (
+            (stats.get('likes', 0) + stats.get('comments', 0) + stats.get('shares', 0))
+            / max(views, 1)
+        )
+    else:
+        engagement_rate = 0
+
     return {
         **stats,
-        'engagement_rate': (
-            (stats['likes'] + stats['comments'] + stats['shares']) / max(stats['views'], 1)
-        ) if stats['views'] > 0 else 0
+        'engagement_rate': engagement_rate
     }
 
 
