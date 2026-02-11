@@ -136,10 +136,31 @@ function FeedPage({ token, onEarnings }) {
   const [liked, setLiked] = useState(new Set());
 
   useEffect(() => {
-    // Load initial feed once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    fetchFeed();
-  }, []);
+    // Load initial feed once on mount without depending on `fetchFeed`
+    const loadInitial = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `http://localhost:8000/feed?limit=20&offset=0`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        const data = await response.json();
+        if (data && data.videos) setVideos(data.videos);
+        setOffset(20);
+      } catch (err) {
+        setError('Failed to load feed');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitial();
+  }, [token]);
 
   const fetchFeed = async () => {
     setLoading(true);
