@@ -688,9 +688,7 @@ async def track_view(
     db.add(transaction)
     db.commit()
 
-    logger.info(
-        f"View tracked: {video_id} by {
-            current_user.id}, earned {reward_cents}¢")
+    logger.info(f"View tracked: {video_id} by {current_user.id}, earned {reward_cents}¢")
 
     return {
         "reward_earned_cents": reward_cents,
