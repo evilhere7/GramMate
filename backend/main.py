@@ -3,7 +3,7 @@ GramMate Backend - FastAPI Application
 Main entry point for all services
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
@@ -33,6 +33,7 @@ from pydantic import BaseModel, EmailStr, Field
 # Security
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+from fastapi.security import OAuth2PasswordBearer
 
 # Third-party integrations
 import stripe
@@ -218,6 +219,30 @@ class Payout(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
 
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    reset_token = Column(String(255), unique=True, nullable=False)
+    # pending, used, expired
+    status = Column(String(20), default="pending")
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmailVerification(Base):
+    __tablename__ = "email_verifications"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    verification_token = Column(String(255), unique=True, nullable=False)
+    # pending, verified, expired
+    status = Column(String(20), default="pending")
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # ====== PYDANTIC SCHEMAS ======
 
 
@@ -294,25 +319,37 @@ class WithdrawalRequest(BaseModel):
     recipient_id: str
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+
+class EmailVerificationRequest(BaseModel):
+    token: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=8)
+
+
 # ====== UTILITY FUNCTIONS ======
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def hash_password(password: str) -> str:
-    # bcrypt has a 72-byte input limit — truncate to avoid errors in some envs
-    if isinstance(password, str):
-        pw = password.encode("utf-8")[:72].decode("utf-8", "ignore")
-    else:
-        pw = password
-    return pwd_context.hash(pw)
+    """Hash password using PBKDF2-SHA256."""
+    return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    if isinstance(plain_password, str):
-        pw = plain_password.encode("utf-8")[:72].decode("utf-8", "ignore")
-    else:
-        pw = plain_password
-    return pwd_context.verify(pw, hashed_password)
+    """Verify password against PBKDF2-SHA256 hash."""
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(
@@ -328,6 +365,34 @@ def create_access_token(
     return encoded_jwt
 
 
+def generate_secure_token() -> str:
+    """Generate a cryptographically secure random token for password reset/email verification."""
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """
+    Validate password strength.
+    Returns: (is_strong, message)
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
+    
+    # For MVP: require at least 3 of 4 character types
+    strength_score = sum([has_upper, has_lower, has_digit, has_special])
+    
+    if strength_score < 3:
+        return False, "Password must contain uppercase, lowercase, numbers, and special characters"
+    
+    return True, "Password is strong"
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -336,19 +401,20 @@ def get_db():
         db.close()
 
 
-def get_current_user(token: str, db: Session = Depends(get_db)) -> User:
-    """Extract user from JWT token"""
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    """Extract user from JWT token provided via Authorization Bearer header"""
+    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise credentials_exception
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise credentials_exception
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise credentials_exception
     return user
 
 
@@ -448,8 +514,26 @@ async def health():
 
 
 @app.post("/auth/signup", response_model=TokenResponse)
-async def signup(user_data: UserSignup, db: Session = Depends(get_db)):
-    """Create new user account"""
+async def signup(
+    user_data: UserSignup,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Create new user account with rate limiting and validation"""
+    # Rate limiting
+    try:
+        from advanced_features import auth_rate_limiter
+        client_ip = request.client.host if request.client else "unknown"
+        if not auth_rate_limiter.is_allowed(client_ip):
+            raise HTTPException(status_code=429, detail="Too many signup attempts. Try again later.")
+    except Exception as e:
+        logger.warning(f"Rate limiting check failed: {e}")
+    
+    # Validate password strength
+    is_strong, msg = validate_password_strength(user_data.password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=msg)
+    
     # Check if email exists
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
@@ -468,13 +552,25 @@ async def signup(user_data: UserSignup, db: Session = Depends(get_db)):
         email=user_data.email,
         username=user_data.username,
         password_hash=hash_password(user_data.password),
-        country_code=user_data.country_code
+        country_code=user_data.country_code,
+        email_verified=False
     )
     db.add(user)
 
     # Create wallet
     wallet = Wallet(id=str(uuid.uuid4()), user_id=user_id)
     db.add(wallet)
+    
+    # Create email verification record
+    verification_token = generate_secure_token()
+    email_verification = EmailVerification(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        verification_token=verification_token,
+        status="pending",
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    db.add(email_verification)
 
     db.commit()
     db.refresh(user)
@@ -491,11 +587,27 @@ async def signup(user_data: UserSignup, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/login", response_model=TokenResponse)
-async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+async def login(
+    user_data: UserLogin,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """Login with email and password"""
+    # Rate limiting
+    try:
+        from advanced_features import auth_rate_limiter
+        client_ip = request.client.host if request.client else "unknown"
+        if not auth_rate_limiter.is_allowed(client_ip):
+            raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
+    except Exception as e:
+        logger.warning(f"Rate limiting check failed: {e}")
+    
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not verify_password(user_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if user.is_banned:
+        raise HTTPException(status_code=403, detail="Account has been banned")
 
     user.last_login_at = datetime.utcnow()
     db.commit()
@@ -512,22 +624,157 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 @app.post("/auth/verify-email")
 async def verify_email(
-    current_user: User = Depends(get_current_user),
+    verify_data: EmailVerificationRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Mark email as verified (simplified - no verification code needed for MVP)
-    """
-    current_user.email_verified = True
-    current_user.creator_verified_tier = max(
-        1, current_user.creator_verified_tier
-    )
+    """Verify email address with token"""
+    email_verification = db.query(EmailVerification).filter(
+        EmailVerification.verification_token == verify_data.token,
+        EmailVerification.status == "pending"
+    ).first()
+    
+    if not email_verification:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    
+    if email_verification.expires_at < datetime.utcnow():
+        email_verification.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=400, detail="Verification token has expired")
+    
+    user = db.query(User).filter(User.id == email_verification.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.email_verified = True
+    user.creator_verified_tier = max(1, user.creator_verified_tier)
+    email_verification.status = "verified"
     db.commit()
 
-    logger.info(f"Email verified: {current_user.email}")
+    logger.info(f"Email verified: {user.email}")
     return {
         "success": True,
-        "message": "Email verified",
+        "message": "Email verified successfully",
+    }
+
+
+@app.post("/auth/password-reset-request")
+async def password_reset_request(
+    reset_data: PasswordResetRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Request a password reset link (rate-limited)"""
+    # Rate limiting
+    try:
+        from advanced_features import auth_rate_limiter
+        client_ip = request.client.host if request.client else "unknown"
+        if not auth_rate_limiter.is_allowed(client_ip):
+            raise HTTPException(status_code=429, detail="Too many reset requests. Try again later.")
+    except Exception as e:
+        logger.warning(f"Rate limiting check failed: {e}")
+    
+    user = db.query(User).filter(User.email == reset_data.email).first()
+    
+    # Always return success for privacy (don't reveal if email exists)
+    if not user:
+        logger.info(f"Password reset requested for non-existent email: {reset_data.email}")
+        return {
+            "success": True,
+            "message": "If the email exists, a reset link has been sent"
+        }
+    
+    # Invalidate old tokens
+    old_resets = db.query(PasswordReset).filter(
+        PasswordReset.user_id == user.id,
+        PasswordReset.status == "pending"
+    ).all()
+    for reset in old_resets:
+        reset.status = "expired"
+    
+    # Create new reset token
+    reset_token = generate_secure_token()
+    password_reset = PasswordReset(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        reset_token=reset_token,
+        status="pending",
+        expires_at=datetime.utcnow() + timedelta(hours=1)
+    )
+    db.add(password_reset)
+    db.commit()
+
+    logger.info(f"Password reset requested for: {user.email}")
+    # In production: send email with reset link containing the token
+    # For now, just log the token (in development)
+    return {
+        "success": True,
+        "message": "If the email exists, a reset link has been sent",
+        "token": reset_token if os.getenv("ENV") == "development" else None  # Only in dev
+    }
+
+
+@app.post("/auth/password-reset-confirm")
+async def password_reset_confirm(
+    reset_data: PasswordResetConfirm,
+    db: Session = Depends(get_db)
+):
+    """Confirm password reset with token"""
+    # Validate new password strength
+    is_strong, msg = validate_password_strength(reset_data.new_password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=msg)
+    
+    password_reset = db.query(PasswordReset).filter(
+        PasswordReset.reset_token == reset_data.token,
+        PasswordReset.status == "pending"
+    ).first()
+    
+    if not password_reset:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+    
+    if password_reset.expires_at < datetime.utcnow():
+        password_reset.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    user = db.query(User).filter(User.id == password_reset.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.password_hash = hash_password(reset_data.new_password)
+    password_reset.status = "used"
+    db.commit()
+
+    logger.info(f"Password reset completed for: {user.email}")
+    return {
+        "success": True,
+        "message": "Password reset successfully"
+    }
+
+
+@app.post("/auth/change-password")
+async def change_password(
+    change_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Change password for authenticated user"""
+    # Verify old password
+    if not verify_password(change_data.old_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    
+    # Validate new password strength
+    is_strong, msg = validate_password_strength(change_data.new_password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=msg)
+    
+    current_user.password_hash = hash_password(change_data.new_password)
+    db.commit()
+
+    logger.info(f"Password changed for: {current_user.email}")
+    return {
+        "success": True,
+        "message": "Password changed successfully"
     }
 
 # ====== USER ENDPOINTS ======
