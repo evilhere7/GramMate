@@ -52,6 +52,13 @@ except Exception:
     logging.getLogger(__name__).warning(
         "Plaid SDK not available; Plaid features disabled in this environment")
 
+try:
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_auth_requests
+except Exception:
+    google_id_token = None
+    google_auth_requests = None
+
 # Config
 import os
 from dotenv import load_dotenv
@@ -258,6 +265,12 @@ class UserLogin(BaseModel):
     password: str
 
 
+class FirebaseAuthRequest(BaseModel):
+    idToken: str
+    email: Optional[EmailStr] = None
+    displayName: Optional[str] = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
@@ -350,6 +363,26 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against PBKDF2-SHA256 hash."""
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def verify_firebase_token(firebase_token: str) -> dict:
+    """Verify Firebase ID token and return decoded claims."""
+    if google_id_token is None or google_auth_requests is None:
+        raise HTTPException(status_code=500, detail="Firebase token verification unavailable")
+
+    request = google_auth_requests.Request()
+    try:
+        decoded_token = google_id_token.verify_firebase_token(firebase_token, request)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Firebase token")
+
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "evil-2e175")
+    aud = decoded_token.get("aud") or decoded_token.get("firebase", {}).get("identities", {}).get("email")
+    issuer = decoded_token.get("iss")
+    if aud != project_id and issuer != f"https://securetoken.google.com/{project_id}":
+        raise HTTPException(status_code=401, detail="Firebase token audience mismatch")
+
+    return decoded_token
 
 
 def create_access_token(
@@ -449,6 +482,15 @@ def calculate_engagement_reward(
 
     total_reward = base_reward * country_mult * verify_mult
     return int(total_reward * 100)  # Convert to cents
+
+
+def create_unique_username(db: Session, base_username: str) -> str:
+    username = base_username
+    suffix = 1
+    while db.query(User).filter(User.username == username).first():
+        username = f"{base_username}{suffix}"
+        suffix += 1
+    return username
 
 # ====== STARTUP/SHUTDOWN ======
 
@@ -615,6 +657,60 @@ async def login(
     access_token = create_access_token(data={"sub": user.id})
     logger.info(f"User logged in: {user_data.email}")
 
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user.id
+    }
+
+
+@app.post("/auth/firebase-login", response_model=TokenResponse)
+async def firebase_login(
+    auth_data: FirebaseAuthRequest,
+    db: Session = Depends(get_db)
+):
+    decoded = verify_firebase_token(auth_data.idToken)
+    firebase_uid = decoded.get("uid") or decoded.get("user_id") or decoded.get("sub")
+    email = decoded.get("email") or auth_data.email
+    if not email:
+        raise HTTPException(status_code=400, detail="Firebase token did not include an email")
+
+    display_name = decoded.get("name") or decoded.get("displayName") or auth_data.displayName or email.split("@")[0]
+    email_verified = decoded.get("email_verified", False)
+
+    user = db.query(User).filter(User.email == email).first()
+    if user and user.is_banned:
+        raise HTTPException(status_code=403, detail="Account has been banned")
+
+    if not user:
+        base_username = email.split("@")[0].lower()
+        username = create_unique_username(db, base_username)
+        user_id = str(uuid.uuid4())
+        user = User(
+            id=user_id,
+            email=email,
+            username=username,
+            password_hash=hash_password(uuid.uuid4().hex),
+            display_name=display_name,
+            email_verified=email_verified,
+            last_login_at=datetime.utcnow()
+        )
+        db.add(user)
+        wallet = Wallet(id=str(uuid.uuid4()), user_id=user_id)
+        db.add(wallet)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"Firebase user created: {email}")
+    else:
+        if not user.display_name and display_name:
+            user.display_name = display_name
+        if email_verified:
+            user.email_verified = True
+        user.last_login_at = datetime.utcnow()
+        db.commit()
+        logger.info(f"Firebase user logged in: {email}")
+
+    access_token = create_access_token(data={"sub": user.id})
     return {
         "access_token": access_token,
         "token_type": "bearer",

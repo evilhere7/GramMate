@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --no-audit --prefer-offline
+RUN npm install --no-audit --prefer-offline --legacy-peer-deps
 
 COPY src ./src
 COPY public ./public
