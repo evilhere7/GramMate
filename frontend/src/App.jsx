@@ -1,299 +1,82 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
-import LoginPage from './pages/LoginPage';
-import FeedPage from './pages/FeedPage';
-import WalletPage from './pages/WalletPage';
-import UploadPage from './pages/UploadPage';
-import CreatorProfilePage from './pages/CreatorProfilePage';
-import { onAuthChange, logout as firebaseLogout, getCurrentUser } from './services/firebase';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import MainLayout from './components/layout/MainLayout';
+import VideoFeed from './pages/Feed/VideoFeed';
+import WalletDashboard from './pages/Wallet/WalletDashboard';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import { useAuth } from './contexts/AuthContext';
 
-const AppContainer = styled.div`
-  width: 100%;
-  height: 100vh;
-  background-color: #000;
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-`;
+function ProtectedRoute({ children, requireAuth = false, requireAdmin = false }) {
+  const { isAuthenticated, currentUser } = useAuth();
 
-const Navigation = styled.nav`
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  background-color: #111;
-  padding: 12px 0;
-  border-bottom: 1px solid #222;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-`;
-
-const NavButton = styled.button`
-  background: none;
-  border: none;
-  color: ${props => (props.active ? '#FF6B35' : '#888')};
-  font-size: 14px;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: color 0.2s;
-  font-weight: ${props => (props.active ? 'bold' : 'normal')};
-
-  &:hover {
-    color: #FF6B35;
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" />;
   }
-`;
 
-const UserInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  font-size: 12px;
-
-  button {
-    background: #FF6B35;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    
-    &:hover {
-      background: #ff5a27;
-    }
+  // Basic admin check simulation - in real app use custom claims
+  if (requireAdmin && (!currentUser || !currentUser.email?.includes('admin'))) {
+    return <Navigate to="/" />;
   }
-`;
 
-const LoadingContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-`;
-
-const LoadingSpinner = styled.div`
-  width: 50px;
-  height: 50px;
-  border: 3px solid rgba(255, 107, 53, 0.3);
-  border-radius: 50%;
-  border-top-color: #ff6b35;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-`;
-
-const LoadingText = styled.p`
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 16px;
-  font-size: 14px;
-`;
+  return children;
+}
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('firebase-login');
-  const [firebaseUser, setFirebaseUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [user, setUser] = useState(null);
-  const [walletBalance, setWalletBalance] = useState(0);
-
-  // Listen for Firebase auth state changes
-  useEffect(() => {
-    const unsubscribe = onAuthChange((user) => {
-      setFirebaseUser(user);
-      setLoading(false);
-      
-      if (!user) {
-        // User logged out
-        setToken(null);
-        setCurrentPage('firebase-login');
-      } else {
-        // User logged in
-        setCurrentPage('feed');
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const fetchUserProfile = useCallback(async () => {
-    if (!token) return;
-    try {
-      const userId = localStorage.getItem('user_id');
-      const response = await fetch(`http://localhost:8000/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      setUser(data);
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-    }
-  }, [token]);
-
-  const fetchWallet = useCallback(async () => {
-    if (!token) return;
-    try {
-      const response = await fetch('http://localhost:8000/wallet', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      setWalletBalance(data.balance_cents / 100);
-    } catch (error) {
-      console.error('Failed to fetch wallet:', error);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    if (token) {
-      // Fetch current user profile and wallet when token changes
-      fetchUserProfile();
-      fetchWallet();
-    }
-  }, [token, fetchUserProfile, fetchWallet]);
-
-  useEffect(() => {
-    if (firebaseUser && !token) {
-      handleFirebaseLogin();
-    }
-  }, [firebaseUser, token]);
-
-  const handleFirebaseLogin = async () => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      return;
-    }
-
-    const idToken = await currentUser.getIdToken();
-    try {
-      const response = await fetch('http://localhost:8000/auth/firebase-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          idToken,
-          email: currentUser.email,
-          displayName: currentUser.displayName || 'User'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.detail || 'Backend authentication failed');
-      }
-
-      const data = await response.json();
-      setToken(data.access_token);
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user_id', data.user_id);
-      setCurrentPage('feed');
-    } catch (error) {
-      console.error('Backend auth error:', error);
-    }
-  };
-
-  const handleLogin = (loginToken, userId) => {
-    setToken(loginToken);
-    localStorage.setItem('token', loginToken);
-    localStorage.setItem('user_id', userId);
-    setCurrentPage('feed');
-  };
-
-  const handleLogout = async () => {
-    try {
-      await firebaseLogout();
-      localStorage.removeItem('token');
-      localStorage.removeItem('user_id');
-      setToken(null);
-      setUser(null);
-      setFirebaseUser(null);
-      setCurrentPage('firebase-login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  if (loading) {
-    return (
-      <AppContainer>
-        <LoadingContainer>
-          <LoadingSpinner />
-          <LoadingText>Loading...</LoadingText>
-        </LoadingContainer>
-      </AppContainer>
-    );
-  }
-
-  // Show Firebase login page if not authenticated
-  if (!firebaseUser) {
-    return (
-      <AppContainer>
-        <LoginPage onLoginSuccess={handleFirebaseLogin} />
-      </AppContainer>
-    );
-  }
-
   return (
-    <AppContainer>
-      <Navigation>
-        <NavButton 
-          active={currentPage === 'feed'} 
-          onClick={() => setCurrentPage('feed')}
-        >
-          Feed
-        </NavButton>
-        <NavButton 
-          active={currentPage === 'upload'} 
-          onClick={() => setCurrentPage('upload')}
-        >
-          Upload
-        </NavButton>
-        <NavButton 
-          active={currentPage === 'wallet'} 
-          onClick={() => setCurrentPage('wallet')}
-        >
-          Wallet (${walletBalance.toFixed(2)})
-        </NavButton>
-        <NavButton 
-          active={currentPage === 'profile'} 
-          onClick={() => setCurrentPage('profile')}
-        >
-          Profile
-        </NavButton>
-        <UserInfo>
-          {user && (
-            <>
-              <span>{user.username}</span>
-              {user.is_creator && <span style={{ color: '#FF6B35' }}>Creator</span>}
-              <button onClick={handleLogout}>Logout</button>
-            </>
-          )}
-          {firebaseUser && !user && (
-            <>
-              <span>{firebaseUser.displayName || firebaseUser.email}</span>
-              <button onClick={handleLogout}>Logout</button>
-            </>
-          )}
-        </UserInfo>
-      </Navigation>
+    <Router>
+      <Routes>
+        {/* Main Application Layout with Sidebar/Bottom Nav */}
+        <Route path="/" element={<MainLayout />}>
+          {/* Public/View-Only Feed */}
+          <Route index element={<VideoFeed />} />
+          <Route path="discover" element={<VideoFeed />} />
 
-      {currentPage === 'feed' && <FeedPage token={token} onEarnings={fetchWallet} />}
-      {currentPage === 'upload' && <UploadPage token={token} />}
-      {currentPage === 'wallet' && <WalletPage token={token} onWithdraw={fetchWallet} />}
-      {currentPage === 'profile' && <CreatorProfilePage token={token} userId={localStorage.getItem('user_id')} />}
-    </AppContainer>
+          {/* Protected Creator/Monetization Routes */}
+          <Route 
+            path="wallet" 
+            element={
+              <ProtectedRoute requireAuth>
+                <WalletDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="profile" 
+            element={
+              <ProtectedRoute requireAuth>
+                <div className="p-8 text-white"><h1 className="text-3xl">Profile Page</h1></div>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="upload" 
+            element={
+              <ProtectedRoute requireAuth>
+                <div className="p-8 text-white"><h1 className="text-3xl">Upload Video</h1></div>
+              </ProtectedRoute>
+            } 
+          />
+        </Route>
+
+        {/* Standalone Pages without Layout */}
+        <Route 
+          path="/login" 
+          element={<div className="h-screen w-full bg-black flex items-center justify-center text-white"><h1 className="text-3xl">Login Page Placeholder</h1></div>} 
+        />
+        
+        {/* Admin Area */}
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute requireAuth requireAdmin>
+              <div className="h-screen w-full bg-black text-white">
+                <AdminDashboard />
+              </div>
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </Router>
   );
 }
 
