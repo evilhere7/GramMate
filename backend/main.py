@@ -73,6 +73,14 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "sqlite:///:memory:")
+MONGODB_URL = os.getenv("MONGODB_URL")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "grammate_db")
+
+# Import Motor client for async MongoDB
+try:
+    from motor.motor_asyncio import AsyncIOMotorClient
+except ImportError:
+    AsyncIOMotorClient = None
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
@@ -434,6 +442,13 @@ def get_db():
         db.close()
 
 
+async def get_mongodb():
+    """Dependency helper to yield the active MongoDB database instance."""
+    if not hasattr(app.state, "mongodb") or app.state.mongodb is None:
+        raise HTTPException(status_code=503, detail="MongoDB service unavailable")
+    return app.state.mongodb
+
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Extract user from JWT token provided via Authorization Bearer header"""
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
@@ -501,9 +516,31 @@ async def lifespan(app: FastAPI):
     logger.info("Starting GramMate API...")
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created/verified")
+    
+    # Initialize MongoDB Client
+    if MONGODB_URL:
+        try:
+            logger.info("Connecting to MongoDB Atlas...")
+            app.state.mongodb_client = AsyncIOMotorClient(MONGODB_URL)
+            app.state.mongodb = app.state.mongodb_client[MONGODB_DB_NAME]
+            # Verify the connection with a quick ping
+            await app.state.mongodb_client.admin.command('ping')
+            logger.info("Successfully connected to MongoDB Atlas!")
+        except Exception as e:
+            logger.error(f"Failed to connect to MongoDB: {e}")
+            app.state.mongodb_client = None
+            app.state.mongodb = None
+    else:
+        logger.warning("MONGODB_URL is not set in environment variables. MongoDB features are disabled.")
+        app.state.mongodb_client = None
+        app.state.mongodb = None
+
     yield
     # Shutdown
     logger.info("Shutting down GramMate API...")
+    if hasattr(app.state, "mongodb_client") and app.state.mongodb_client:
+        app.state.mongodb_client.close()
+        logger.info("Closed MongoDB client connection")
 
 app = FastAPI(
     title="GramMate API",
@@ -551,6 +588,36 @@ async def health():
         "timestamp": datetime.utcnow().isoformat(),
         "service": "grammate-api"
     }
+
+
+@app.get("/health/mongodb")
+async def health_mongodb():
+    """Verify that MongoDB connection is healthy and responsive."""
+    if not hasattr(app.state, "mongodb_client") or app.state.mongodb_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unhealthy",
+                "reason": "MongoDB is not configured or failed to initialize on startup"
+            }
+        )
+    try:
+        # Ping the deployment
+        await app.state.mongodb_client.admin.command('ping')
+        return {
+            "status": "healthy",
+            "database": MONGODB_DB_NAME,
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "mongodb-connection"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "unhealthy",
+                "reason": f"MongoDB ping failed: {str(e)}"
+            }
+        )
 
 # ====== AUTH ENDPOINTS ======
 
