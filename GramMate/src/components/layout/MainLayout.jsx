@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Home, Compass, PlusSquare, Wallet, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';

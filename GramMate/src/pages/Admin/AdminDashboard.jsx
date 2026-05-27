@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { ShieldAlert, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 

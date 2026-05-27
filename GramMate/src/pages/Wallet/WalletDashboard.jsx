@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, ShieldCheck, DollarSign } from 'lucide-react';
+import { Wallet, ArrowUpRight, Clock, ShieldCheck } from 'lucide-react';
 
 export default function WalletDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
