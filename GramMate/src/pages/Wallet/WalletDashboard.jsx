@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, ArrowUpRight, Clock, ShieldCheck } from 'lucide-react';
+import AppIcon from '../../components/brand/AppIcon';
 
 export default function WalletDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -22,7 +23,11 @@ export default function WalletDashboard() {
           animate={{ y: 0, opacity: 1 }}
           className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-6 rounded-3xl relative overflow-hidden"
         >
+          {/* Neon gradient background glow */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full" />
+          {/* Subtle logo watermark backdrop */}
+          <AppIcon size="xl" variant="plain" interactive={false} className="absolute -bottom-6 -right-6 opacity-[0.04] text-white rotate-12 scale-150 pointer-events-none select-none" />
+          
           <div className="flex justify-between items-start mb-8 relative z-10">
             <div>
               <p className="text-gray-400 font-medium mb-1">Available Balance</p>
@@ -54,9 +59,9 @@ export default function WalletDashboard() {
             <p className="text-sm text-gray-500 mt-2">Funds from recent engagement take 48h to clear.</p>
           </div>
           
-          <div className="flex items-center gap-2 mt-6 text-sm text-gray-400 bg-black/40 p-3 rounded-xl">
-            <ShieldCheck size={16} className="text-secondary" />
-            <span>Secured by Stripe Connect</span>
+          <div className="flex items-center gap-3 mt-6 text-sm text-gray-400 bg-black/45 p-3 rounded-2xl border border-gray-800/40 relative overflow-hidden">
+            <AppIcon size="xs" variant="badge" interactive={false} className="shrink-0" />
+            <span className="font-semibold text-gray-300">Secured by Stripe Connect & GramMate Trust</span>
           </div>
         </motion.div>
       </div>

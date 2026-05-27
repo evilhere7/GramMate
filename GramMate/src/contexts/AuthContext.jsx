@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import SplashLogo from '../components/brand/SplashLogo';
 
 const AuthContext = createContext();
 
@@ -74,7 +75,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? <SplashLogo fullScreen /> : children}
     </AuthContext.Provider>
   );
 }
