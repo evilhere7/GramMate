@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn, Github } from 'lucide-react';
+import { Mail, Lock, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../../components/brand/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -49,9 +50,9 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md bg-gray-950/50 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 relative z-10 shadow-2xl"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-2">GramMate</h1>
-          <p className="text-gray-400 font-medium">Welcome back, creator.</p>
+        <div className="text-center mb-8 flex flex-col items-center justify-center">
+          <Logo size="xl" layout="vertical" tagline={false} hoverGlow />
+          <p className="text-gray-400 font-semibold text-sm tracking-wide mt-3">Welcome back, creator.</p>
         </div>
 
         {error && (

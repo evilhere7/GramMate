@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
@@ -11,43 +11,43 @@ export default function CreatorProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchProfileAndVideos = async () => {
+      try {
+        // For this skeleton, we're assuming the profiles table is created via Supabase triggers.
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        setProfile(profileData || { 
+          username: user.email.split('@')[0],
+          full_name: user.email.split('@')[0],
+          avatar_url: null,
+          bio: "Welcome to my GramMate profile! 👋 Watch my videos and earn together.",
+          followers_count: 1240,
+          following_count: 85,
+          is_verified: true
+        });
+
+        // Dummy videos since we might not have a populated DB yet
+        setVideos([
+          { id: 1, thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&q=80', views: '12K' },
+          { id: 2, thumbnail: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&q=80', views: '8.4K' },
+          { id: 3, thumbnail: 'https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=500&q=80', views: '45K' },
+          { id: 4, thumbnail: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=500&q=80', views: '2K' },
+        ]);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (user) {
       fetchProfileAndVideos();
     }
   }, [user]);
-
-  const fetchProfileAndVideos = async () => {
-    try {
-      // For this skeleton, we're assuming the profiles table is created via Supabase triggers.
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-        
-      setProfile(profileData || { 
-        username: user.email.split('@')[0],
-        full_name: user.email.split('@')[0],
-        avatar_url: null,
-        bio: "Welcome to my GramMate profile! 👋 Watch my videos and earn together.",
-        followers_count: 1240,
-        following_count: 85,
-        is_verified: true
-      });
-
-      // Dummy videos since we might not have a populated DB yet
-      setVideos([
-        { id: 1, thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&q=80', views: '12K' },
-        { id: 2, thumbnail: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&q=80', views: '8.4K' },
-        { id: 3, thumbnail: 'https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=500&q=80', views: '45K' },
-        { id: 4, thumbnail: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=500&q=80', views: '2K' },
-      ]);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) return null; // Controlled by global loader or layout usually
 

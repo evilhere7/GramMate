@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, UserPlus, Github, User } from 'lucide-react';
+import { Mail, Lock, UserPlus, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../../components/brand/Logo';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -51,9 +52,10 @@ export default function Signup() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md bg-gray-950/50 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 relative z-10 shadow-2xl"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-2">Join GramMate</h1>
-          <p className="text-gray-400 font-medium">Watch. Create. Earn.</p>
+        <div className="text-center mb-8 flex flex-col items-center justify-center">
+          <Logo size="xl" layout="vertical" tagline={false} hoverGlow />
+          <h2 className="text-xl font-bold tracking-tight text-white mt-4 leading-none">Join the Income Revolution</h2>
+          <p className="text-gray-500 font-bold tracking-widest text-[10px] uppercase mt-2">Watch • Create • Earn</p>
         </div>
 
         {error && (

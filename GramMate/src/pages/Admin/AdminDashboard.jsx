@@ -1,6 +1,7 @@
-import React from 'react';
+
 import { ShieldAlert, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Logo from '../../components/brand/Logo';
 
 export default function AdminDashboard() {
   const stats = [
@@ -11,9 +12,16 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto h-full overflow-y-auto">
-      <header className="mb-8 flex items-center gap-3">
-        <ShieldAlert className="text-primary w-8 h-8" />
-        <h1 className="text-3xl font-bold text-white">Admin Control Center</h1>
+      <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-900 pb-6">
+        <div className="flex items-center gap-3">
+          <Logo size="md" hoverGlow />
+          <span className="h-6 w-[1px] bg-gray-800" />
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-primary border border-red-500/20 rounded-full text-xs font-bold uppercase tracking-widest">
+            <ShieldAlert size={14} />
+            <span>Admin Center</span>
+          </div>
+        </div>
+        <p className="text-sm text-gray-500 font-semibold tracking-wider uppercase leading-none">GramMate Security Suite</p>
       </header>
 
       {/* Stats Grid */}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, FileVideo, X, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -45,7 +45,7 @@ export default function UploadPage() {
       const fileName = `${user.id}/${Math.random()}.${fileExt}`;
 
       // 1. Upload video to Supabase Storage
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('videos')
         .upload(fileName, file, {
           cacheControl: '3600',

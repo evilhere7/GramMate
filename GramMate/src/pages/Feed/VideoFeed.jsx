@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share2, DollarSign } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const DUMMY_VIDEOS = [
   },
 ];
 
-const EngagementTracker = ({ rewardRate, isActive }) => {
+const EngagementTracker = ({ isActive }) => {
   const [earned, setEarned] = useState(0);
 
   useEffect(() => {
