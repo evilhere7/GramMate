@@ -1,14 +1,14 @@
 import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Logo from './Logo';
 
 const LOADING_MESSAGES = [
-  'Initializing Secure Connection...',
-  'Loading Creator Ecosystem...',
-  'Connecting Smart Wallet Ledger...',
-  'Syncing Decentralized Ads Server...',
-  'Powering Creative Freedom...',
+  'Checking your session...',
+  'Loading creator tools...',
+  'Syncing wallet ledger...',
+  'Preparing reward controls...',
+  'Opening GramMate...',
 ];
 
 export default function SplashLogo({
@@ -16,13 +16,11 @@ export default function SplashLogo({
   overlay = false,
   message = '',
 }) {
-  const [activeMessage, setActiveMessage] = useState(message || LOADING_MESSAGES[0]);
+  const [activeMessage, setActiveMessage] = useState(LOADING_MESSAGES[0]);
+  const displayMessage = message || activeMessage;
 
   useEffect(() => {
-    if (message) {
-      setActiveMessage(message);
-      return;
-    }
+    if (message) return undefined;
 
     const interval = setInterval(() => {
       setActiveMessage((prev) => {
@@ -36,57 +34,16 @@ export default function SplashLogo({
   }, [message]);
 
   const containerClasses = fullScreen
-    ? 'fixed inset-0 w-screen h-screen bg-black z-[9999] flex flex-col items-center justify-center overflow-hidden'
+    ? 'fixed inset-0 z-[9999] flex h-screen w-screen flex-col items-center justify-center overflow-hidden bg-white'
     : overlay
-    ? 'absolute inset-0 w-full h-full bg-black/85 backdrop-blur-xl z-[90] flex flex-col items-center justify-center'
-    : 'w-full py-12 flex flex-col items-center justify-center';
+      ? 'absolute inset-0 z-[90] flex h-full w-full flex-col items-center justify-center bg-white/90 backdrop-blur'
+      : 'flex w-full flex-col items-center justify-center py-12';
 
   return (
     <div className={containerClasses}>
-      {/* Decorative Rotating Glow Orbs (Only on large fullScreen / overlay modes) */}
-      {(fullScreen || overlay) && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              x: [-20, 20, -20],
-              y: [-10, 10, -10],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-            className="absolute top-[20%] left-[15%] w-80 h-80 bg-primary/20 blur-[130px] rounded-full"
-          />
-          <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              x: [20, -20, 20],
-              y: [10, -10, 10],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-            className="absolute bottom-[20%] right-[15%] w-[35rem] h-[35rem] bg-secondary/15 blur-[160px] rounded-full"
-          />
-        </div>
-      )}
-
-      {/* Main Brand Assembly */}
       <div className="relative z-10 flex flex-col items-center">
-        {/* Breathing animated Logo */}
         <motion.div
-          animate={{
-            scale: [1, 1.05, 1],
-            filter: [
-              'drop-shadow(0 0 15px rgba(139,92,246,0.3))',
-              'drop-shadow(0 0 35px rgba(255,46,99,0.6))',
-              'drop-shadow(0 0 15px rgba(139,92,246,0.3))',
-            ],
-          }}
+          animate={{ opacity: [0.92, 1, 0.92] }}
           transition={{
             duration: 2.2,
             repeat: Infinity,
@@ -97,42 +54,36 @@ export default function SplashLogo({
           <Logo size={fullScreen ? 'xl' : 'lg'} layout="vertical" tagline={false} hoverGlow={false} />
         </motion.div>
 
-        {/* Dynamic Loading Text Assembly */}
-        <div className="flex flex-col items-center max-w-xs text-center mt-4">
-          {/* Tagline */}
+        <div className="mt-4 flex max-w-xs flex-col items-center text-center">
           <motion.span
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-[10px] md:text-xs text-gray-500 font-black tracking-[0.35em] uppercase mb-4"
+            className="mb-4 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 md:text-xs"
           >
-            Watch • Create • Earn
+            Watch. Create. Earn.
           </motion.span>
 
-          {/* Animated custom bar indicator */}
-          <div className="w-48 h-1 bg-gray-900 rounded-full overflow-hidden relative mb-4">
+          <div className="relative mb-4 h-1 w-48 overflow-hidden rounded-full bg-slate-200">
             <motion.div
-              animate={{
-                left: ['-100%', '100%'],
-              }}
+              animate={{ left: ['-100%', '100%'] }}
               transition={{
                 duration: 1.5,
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
-              className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-secondary to-primary rounded-full shadow-[0_0_8px_#FF2E63]"
+              className="absolute bottom-0 top-0 w-1/2 rounded-full bg-blue-600"
             />
           </div>
 
-          {/* Live Status text with smooth fade transitions */}
           <motion.p
-            key={activeMessage}
+            key={displayMessage}
             initial={{ opacity: 0, y: 3 }}
             animate={{ opacity: 0.8, y: 0 }}
             exit={{ opacity: 0, y: -3 }}
-            className="text-xs text-gray-400 font-medium tracking-wide animate-pulse"
+            className="text-xs font-medium tracking-wide text-slate-500"
           >
-            {activeMessage}
+            {displayMessage}
           </motion.p>
         </div>
       </div>

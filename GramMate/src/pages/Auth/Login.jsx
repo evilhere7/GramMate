@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import { ArrowRight, KeyRound, Lock, Mail, MonitorSmartphone } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Logo from '../../components/brand/Logo';
@@ -8,20 +7,20 @@ import Logo from '../../components/brand/Logo';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetSent, setResetSent] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
     try {
       const { error } = await signIn(email, password);
       if (error) throw error;
-      navigate('/');
+      navigate('/feed');
     } catch (err) {
       setError(err.message || 'Failed to sign in');
     } finally {
@@ -29,111 +28,80 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { error } = await signInWithGoogle();
-      if (error) throw error;
-    } catch (err) {
-      setError(err.message || 'Failed to sign in with Google');
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError('Enter your email first so we know where to send the reset link.');
+      return;
     }
+    const { error } = await resetPassword(email);
+    if (error) setError(error.message);
+    else setResetSent(true);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black relative overflow-hidden px-4">
-      {/* Animated Background Gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-secondary/20 blur-[120px] rounded-full pointer-events-none" />
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md bg-gray-950/50 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 relative z-10 shadow-2xl"
-      >
-        <div className="text-center mb-8 flex flex-col items-center justify-center">
-          <Logo size="xl" layout="vertical" tagline={false} hoverGlow />
-          <p className="text-gray-400 font-semibold text-sm tracking-wide mt-3">Welcome back, creator.</p>
-        </div>
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-xl mb-6 text-sm text-center">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
+    <div className="min-h-screen bg-slate-50 px-4 py-10">
+      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl overflow-hidden rounded-lg border border-slate-200 bg-white lg:grid-cols-[0.95fr_1.05fr]">
+        <aside className="hidden bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <Logo size="lg" className="[&_h1]:text-white [&_p]:text-slate-400" hoverGlow={false} />
           <div>
-            <div className="relative flex items-center">
-              <Mail className="absolute left-4 text-gray-500" size={20} />
-              <input 
-                type="email"
-                required
-                placeholder="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-              />
+            <p className="text-4xl font-bold leading-tight">Secure sessions for a real earning account.</p>
+            <div className="mt-8 space-y-4">
+              {['Email verification', 'Google OAuth', 'Password reset', 'Device management'].map((item) => (
+                <div key={item} className="flex items-center gap-3 text-slate-200">
+                  <MonitorSmartphone size={18} className="text-blue-400" aria-hidden="true" />
+                  <span className="font-semibold">{item}</span>
+                </div>
+              ))}
             </div>
           </div>
-          
-          <div>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-4 text-gray-500" size={20} />
-              <input 
-                type="password"
-                required
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-              />
-            </div>
-          </div>
+        </aside>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl transition-all flex justify-center items-center gap-2 group disabled:opacity-50"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-            {!loading && <LogIn size={18} className="group-hover:translate-x-1 transition-transform" />}
-          </button>
-        </form>
+        <main className="flex items-center justify-center p-6 sm:p-10">
+          <div className="w-full max-w-md">
+            <Logo size="md" className="mb-10 lg:hidden" hoverGlow={false} />
+            <h1 className="text-3xl font-bold text-slate-950">Welcome back</h1>
+            <p className="mt-2 text-slate-600">Log in to watch, create, earn, and manage payouts.</p>
 
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-800"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-950/50 text-gray-500">Or continue with</span>
-            </div>
-          </div>
+            {error && <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</div>}
+            {resetSent && <div className="mt-6 rounded-md border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-700">Password reset email sent.</div>}
 
-          <div className="mt-6">
-            <button 
-              onClick={handleGoogleLogin}
-              type="button"
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-black font-semibold py-3 rounded-xl transition-colors"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.66 15.63 16.88 16.81 15.71 17.59V20.35H19.28C21.36 18.43 22.56 15.6 22.56 12.25Z" fill="#4285F4"/>
-                <path d="M12 23C14.97 23 17.46 22.02 19.28 20.35L15.71 17.59C14.72 18.25 13.46 18.66 12 18.66C9.17 18.66 6.77 16.75 5.86 14.18H2.18V17.03C3.99 20.63 7.7 23 12 23Z" fill="#34A853"/>
-                <path d="M5.86 14.18C5.63 13.49 5.5 12.76 5.5 12C5.5 11.24 5.63 10.51 5.86 9.82V6.97H2.18C1.43 8.46 1 10.18 1 12C1 13.82 1.43 15.54 2.18 17.03L5.86 14.18Z" fill="#FBBC05"/>
-                <path d="M12 5.34C13.62 5.34 15.07 5.9 16.21 6.99L19.35 3.85C17.46 2.09 14.97 1 12 1C7.7 1 3.99 3.37 2.18 6.97L5.86 9.82C6.77 7.25 9.17 5.34 12 5.34Z" fill="#EA4335"/>
-              </svg>
-              Sign in with Google
+            <form onSubmit={handleLogin} className="mt-8 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Email</span>
+                <span className="relative flex items-center">
+                  <Mail className="absolute left-3 text-slate-400" size={19} />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border border-slate-300 py-3 pl-10 pr-3 text-slate-950" placeholder="you@example.com" />
+                </span>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Password</span>
+                <span className="relative flex items-center">
+                  <Lock className="absolute left-3 text-slate-400" size={19} />
+                  <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-slate-300 py-3 pl-10 pr-3 text-slate-950" placeholder="Your password" />
+                </span>
+              </label>
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={handlePasswordReset} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-800">
+                  <KeyRound size={16} />
+                  Reset password
+                </button>
+              </div>
+              <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                {loading ? 'Signing in...' : 'Sign in'}
+                {!loading && <ArrowRight size={18} />}
+              </button>
+            </form>
+
+            <button onClick={signInWithGoogle} type="button" className="mt-4 w-full rounded-md border border-slate-300 bg-white py-3 font-bold text-slate-900 hover:bg-slate-50">
+              Continue with Google
             </button>
-          </div>
-        </div>
 
-        <p className="mt-8 text-center text-sm text-gray-400">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-primary font-bold hover:underline">
-            Create one
-          </Link>
-        </p>
-      </motion.div>
+            <p className="mt-8 text-center text-sm text-slate-600">
+              New to GramMate? <Link to="/signup" className="font-bold text-blue-700">Create an account</Link>
+            </p>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

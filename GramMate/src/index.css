@@ -19,44 +19,44 @@
 @layer base {
   :root {
     --background: #ffffff;
-    --foreground: #121212;
+    --foreground: #111827;
     
-    --primary: #FF2E63;
+    --primary: #2563eb;
     --primary-foreground: #ffffff;
     
-    --secondary: #08D9D6;
-    --secondary-foreground: #121212;
+    --secondary: #0f172a;
+    --secondary-foreground: #ffffff;
     
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
+    --muted: #f8fafc;
+    --muted-foreground: #64748b;
     
-    --accent: #EAEAEA;
-    --accent-foreground: #121212;
+    --accent: #eef2ff;
+    --accent-foreground: #1e3a8a;
     
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #FF2E63;
+    --border: #e5e7eb;
+    --input: #d1d5db;
+    --ring: #2563eb;
   }
   
   .dark {
-    --background: #09090b;
-    --foreground: #fafafa;
+    --background: #ffffff;
+    --foreground: #111827;
     
-    --primary: #FF2E63;
+    --primary: #2563eb;
     --primary-foreground: #ffffff;
     
-    --secondary: #08D9D6;
-    --secondary-foreground: #09090b;
+    --secondary: #0f172a;
+    --secondary-foreground: #ffffff;
     
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
+    --muted: #f8fafc;
+    --muted-foreground: #64748b;
     
-    --accent: #1f1f22;
-    --accent-foreground: #fafafa;
+    --accent: #eef2ff;
+    --accent-foreground: #1e3a8a;
     
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #FF2E63;
+    --border: #e5e7eb;
+    --input: #d1d5db;
+    --ring: #2563eb;
   }
 }
 
@@ -65,8 +65,16 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/30;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  a, button, input, textarea, select {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 }
 

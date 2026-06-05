@@ -1,7 +1,6 @@
-import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 
-export const LogoIcon = ({ className = '', size = 40, glow = false }) => {
+export const LogoIcon = ({ className = '', size = 40 }) => {
   return (
     <svg
       width={size}
@@ -9,48 +8,15 @@ export const LogoIcon = ({ className = '', size = 40, glow = false }) => {
       viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`${className} ${glow ? 'drop-shadow-[0_0_12px_rgba(139,92,246,0.6)]' : ''} transition-all duration-300`}
+      className={className}
+      aria-hidden="true"
     >
-      <defs>
-        <linearGradient id="grammate-icon-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#08D9D6" />
-          <stop offset="50%" stopColor="#8B5CF6" />
-          <stop offset="100%" stopColor="#FF2E63" />
-        </linearGradient>
-      </defs>
-      
-      {/* Outer Stylized 'G' with Arrow */}
+      <rect x="10" y="10" width="80" height="80" rx="18" fill="#0F172A" />
       <path
-        d="M 68 35 
-           C 74 41, 76 49, 76 56
-           C 76 70, 64 82, 50 82
-           C 36 82, 24 70, 24 56
-           C 24 42, 36 30, 50 30
-           C 55 30, 60 32, 64 35
-           L 72 26
-           C 66 20, 58 18, 50 18
-           C 29 18, 12 35, 12 56
-           C 12 77, 29 94, 50 94
-           C 71 94, 88 77, 88 56
-           C 88 45, 84 35, 78 28
-           L 92 14
-           L 66 14
-           L 66 38
-           L 70 35"
-        fill="url(#grammate-icon-gradient)"
+        d="M64 34.5C59.8 30.8 54.8 29 49 29C37.4 29 28 38.4 28 50C28 61.6 37.4 71 49 71C58.9 71 67.2 64.1 69.4 54.8H51.5V44.6H81V50C81 68.2 67.1 82 49 82C31 82 17 68 17 50C17 32 31 18 49 18C58 18 65.6 21.1 71.8 26.8L64 34.5Z"
+        fill="#FFFFFF"
       />
-
-      {/* Central Left-Pointing Play Triangle */}
-      <path
-        d="M 54 44 
-           L 40 56
-           L 54 68
-           Z"
-        fill="url(#grammate-icon-gradient)"
-        stroke="url(#grammate-icon-gradient)"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
+      <path d="M47 42L62 50L47 58V42Z" fill="#2563EB" />
     </svg>
   );
 };
@@ -58,18 +24,15 @@ export const LogoIcon = ({ className = '', size = 40, glow = false }) => {
 LogoIcon.propTypes = {
   className: PropTypes.string,
   size: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  glow: PropTypes.bool,
 };
 
 export default function Logo({
   size = 'md',
   layout = 'horizontal',
   tagline = true,
-  hoverGlow = true,
-  iconGlow = false,
+  hoverGlow = false,
   className = '',
 }) {
-  // Sizing definitions
   const sizeMap = {
     xs: { icon: 20, text: 'text-sm', tag: 'text-[8px]', spacing: 'gap-1.5' },
     sm: { icon: 28, text: 'text-lg', tag: 'text-[9px]', spacing: 'gap-2' },
@@ -81,43 +44,25 @@ export default function Logo({
 
   const currentSize = sizeMap[size] || sizeMap.md;
 
-  const content = (
+  return (
     <div
       className={`flex ${
         layout === 'vertical' ? 'flex-col items-center text-center' : 'items-center text-left'
-      } ${currentSize.spacing} ${className}`}
+      } ${currentSize.spacing} ${hoverGlow ? 'transition-transform hover:scale-[1.01]' : ''} ${className}`}
     >
-      <LogoIcon size={currentSize.icon} glow={iconGlow} />
-      
+      <LogoIcon size={currentSize.icon} />
       <div className="flex flex-col">
-        <h1 className={`${currentSize.text} font-black tracking-tighter leading-none flex items-center`}>
-          <span className="text-white">Gram</span>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF2E63] to-[#8B5CF6] drop-shadow-[0_0_8px_rgba(255,46,99,0.3)]">
-            Mate
-          </span>
+        <h1 className={`${currentSize.text} font-extrabold leading-none tracking-normal text-slate-950`}>
+          GramMate
         </h1>
         {tagline && (
-          <p className={`${currentSize.tag} text-gray-500 font-bold tracking-[0.25em] uppercase mt-1.5 leading-none`}>
+          <p className={`${currentSize.tag} mt-1.5 font-bold uppercase leading-none tracking-[0.18em] text-slate-500`}>
             Watch. Create. Earn.
           </p>
         )}
       </div>
     </div>
   );
-
-  if (hoverGlow) {
-    return (
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="cursor-pointer inline-block"
-      >
-        {content}
-      </motion.div>
-    );
-  }
-
-  return content;
 }
 
 Logo.propTypes = {
@@ -125,6 +70,5 @@ Logo.propTypes = {
   layout: PropTypes.oneOf(['horizontal', 'vertical']),
   tagline: PropTypes.bool,
   hoverGlow: PropTypes.bool,
-  iconGlow: PropTypes.bool,
   className: PropTypes.string,
 };

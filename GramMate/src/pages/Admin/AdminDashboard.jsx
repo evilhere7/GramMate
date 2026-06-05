@@ -1,90 +1,83 @@
-
-import { ShieldAlert, Users, TrendingUp, AlertTriangle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CheckCircle2, Headphones, Search, ShieldAlert, UserX } from 'lucide-react';
 import Logo from '../../components/brand/Logo';
+import { adminStats, moderationQueue } from '../../data/platformData';
+
+const adminAreas = ['User management', 'Video management', 'Reports', 'Earnings', 'Withdrawals', 'Fraud', 'Support'];
 
 export default function AdminDashboard() {
-  const stats = [
-    { label: 'Total Users', value: '45,231', icon: Users, color: 'text-blue-500' },
-    { label: 'Pending Withdrawals', value: '$12,450', icon: TrendingUp, color: 'text-primary' },
-    { label: 'Reported Content', value: '23', icon: AlertTriangle, color: 'text-yellow-500' },
-  ];
-
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto h-full overflow-y-auto">
-      <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-900 pb-6">
-        <div className="flex items-center gap-3">
-          <Logo size="md" hoverGlow />
-          <span className="h-6 w-[1px] bg-gray-800" />
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-primary border border-red-500/20 rounded-full text-xs font-bold uppercase tracking-widest">
-            <ShieldAlert size={14} />
-            <span>Admin Center</span>
-          </div>
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8">
+      <header className="mb-8 flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end">
+        <div>
+          <Logo size="sm" hoverGlow={false} />
+          <p className="mt-6 text-sm font-bold uppercase tracking-[0.16em] text-blue-600">Admin Center</p>
+          <h1 className="mt-2 text-4xl font-bold text-slate-950">Platform operations and trust</h1>
         </div>
-        <p className="text-sm text-gray-500 font-semibold tracking-wider uppercase leading-none">GramMate Security Suite</p>
+        <label className="relative block md:w-80">
+          <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+          <input className="w-full rounded-md border border-slate-300 py-3 pl-10 pr-3" placeholder="Search users, videos, reports" />
+        </label>
       </header>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex items-center justify-between"
-          >
-            <div>
-              <p className="text-gray-400 font-medium mb-1">{stat.label}</p>
-              <p className="text-3xl font-bold text-white">{stat.value}</p>
-            </div>
-            <div className={`p-4 bg-black rounded-full ${stat.color}`}>
-              <stat.icon size={24} />
-            </div>
-          </motion.div>
+      <section className="grid gap-4 md:grid-cols-4">
+        {adminStats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <article key={stat.label} className="rounded-lg border border-slate-200 bg-white p-5">
+              <div className="flex items-center justify-between">
+                <Icon size={21} className="text-blue-600" />
+                <span className="text-xs font-bold text-slate-500">{stat.trend}</span>
+              </div>
+              <p className="mt-5 text-sm text-slate-500">{stat.label}</p>
+              <p className="mt-1 text-2xl font-bold text-slate-950">{stat.value}</p>
+            </article>
+          );
+        })}
+      </section>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+        <aside className="rounded-lg border border-slate-200 bg-white p-5">
+          <h2 className="text-xl font-bold text-slate-950">Admin modules</h2>
+          <div className="mt-4 grid gap-2">
+            {adminAreas.map((area) => (
+              <button key={area} className="rounded-md px-3 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50">{area}</button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="rounded-lg border border-slate-200 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-200 p-5">
+            <h2 className="text-xl font-bold text-slate-950">Fraud and moderation queue</h2>
+            <ShieldAlert size={22} className="text-amber-600" />
+          </div>
+          <div className="divide-y divide-slate-200">
+            {moderationQueue.map((item) => (
+              <div key={item.item} className="grid gap-4 p-5 md:grid-cols-[1fr_auto_auto] md:items-center">
+                <div>
+                  <p className="font-bold text-slate-950">{item.item}</p>
+                  <p className="mt-1 text-sm text-slate-500">{item.reason}</p>
+                </div>
+                <span className="rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">Risk {item.score}</span>
+                <button className="rounded-md bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">{item.action}</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-3">
+        {[
+          ['Withdrawal approvals', 'Review payout requests, KYC state, risk holds, and audit notes.', CheckCircle2],
+          ['Support tickets', 'Resolve creator appeals, viewer reward disputes, and account issues.', Headphones],
+          ['User enforcement', 'Warn, limit, block, or ban accounts with clear internal notes.', UserX],
+        ].map(([title, copy, Icon]) => (
+          <article key={title} className="rounded-lg border border-slate-200 bg-white p-5">
+            <Icon size={22} className="text-blue-600" />
+            <h3 className="mt-4 text-lg font-bold text-slate-950">{title}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{copy}</p>
+          </article>
         ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Fraud Monitoring */}
-        <section className="bg-gray-900 border border-gray-800 rounded-3xl p-6">
-          <h2 className="text-xl font-bold text-white mb-6 border-b border-gray-800 pb-4">Live Fraud Monitoring</h2>
-          <div className="space-y-4">
-            {[1, 2].map(i => (
-              <div key={i} className="flex justify-between items-center p-4 bg-black rounded-xl border border-red-500/20">
-                <div>
-                  <p className="text-red-400 font-bold text-sm mb-1">Suspicious Bot Engagement</p>
-                  <p className="text-gray-400 text-xs">User: @spam_bot_99 • Video ID: {i}8a9b2</p>
-                </div>
-                <button className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-bold hover:bg-red-500/20 transition-colors">
-                  Ban User
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Pending Withdrawals */}
-        <section className="bg-gray-900 border border-gray-800 rounded-3xl p-6">
-          <h2 className="text-xl font-bold text-white mb-6 border-b border-gray-800 pb-4">Pending Payouts</h2>
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="flex justify-between items-center p-4 bg-black rounded-xl border border-gray-800">
-                <div>
-                  <p className="text-white font-bold text-sm mb-1">@creator_pro</p>
-                  <p className="text-gray-400 text-xs">Stripe Connect • Requested 2h ago</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-primary font-bold">${(i * 150).toFixed(2)}</span>
-                  <button className="px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors">
-                    Approve
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      </section>
     </div>
   );
 }

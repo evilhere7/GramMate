@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -9,53 +8,27 @@ import WalletDashboard from './pages/Wallet/WalletDashboard';
 import UploadPage from './pages/Upload/UploadPage';
 import CreatorProfilePage from './pages/Profile/CreatorProfilePage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
+import LandingPage from './pages/Landing/LandingPage';
+import CreatorStudio from './pages/Studio/CreatorStudio';
 
 function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
+
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<VideoFeed />} />
+          <Route path="feed" element={<VideoFeed />} />
           <Route path="explore" element={<VideoFeed />} />
-          
-          <Route path="wallet" element={
-            <ProtectedRoute>
-              <WalletDashboard />
-            </ProtectedRoute>
-          } />
-
-          <Route path="profile/me" element={
-            <ProtectedRoute>
-              <CreatorProfilePage />
-            </ProtectedRoute>
-          } />
-
-          <Route path="upload" element={
-            <ProtectedRoute>
-              <UploadPage />
-            </ProtectedRoute>
-          } />
+          <Route path="wallet" element={<ProtectedRoute><WalletDashboard /></ProtectedRoute>} />
+          <Route path="profile/me" element={<ProtectedRoute><CreatorProfilePage /></ProtectedRoute>} />
+          <Route path="upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+          <Route path="studio" element={<ProtectedRoute><CreatorStudio /></ProtectedRoute>} />
+          <Route path="admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
         </Route>
 
-        <Route path="/login" element={
-          <ProtectedRoute requireAuth={false}>
-            <Login />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/signup" element={
-          <ProtectedRoute requireAuth={false}>
-            <Signup />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/admin" element={
-          <ProtectedRoute requireAuth={true}>
-            <div className="h-screen w-full bg-black text-white">
-              <AdminDashboard />
-            </div>
-          </ProtectedRoute>
-        } />
+        <Route path="/login" element={<ProtectedRoute requireAuth={false}><Login /></ProtectedRoute>} />
+        <Route path="/signup" element={<ProtectedRoute requireAuth={false}><Signup /></ProtectedRoute>} />
       </Routes>
     </Router>
   );
