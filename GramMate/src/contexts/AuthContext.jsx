@@ -61,6 +61,10 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const updatePassword = async (password) => {
+    return supabase.auth.updateUser({ password });
+  };
+
   const value = {
     user,
     session,
@@ -70,7 +74,8 @@ export function AuthProvider({ children }) {
     signInWithGoogle,
     signOut,
     resetPassword,
-    isAuthenticated: !!user
+    updatePassword,
+    isAuthenticated: !!user,
   };
 
   return (

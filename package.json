@@ -1,0 +1,11 @@
+{
+  "name": "grammate-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix GramMate",
+    "build": "npm run build --prefix GramMate",
+    "start": "npm run preview --prefix GramMate",
+    "lint": "npm run lint --prefix GramMate"
+  }
+}

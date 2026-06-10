@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: grammate
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - '4000:4000'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/grammate
+      JWT_SECRET: replace-with-a-secure-random-value
+      FRONTEND_URL: http://localhost:5173
+      COOKIE_NAME: grammate_refresh
+      COOKIE_SECURE: 'false'
+      SUPER_ADMIN_EMAIL: evilmc777@gmail.com
+      SUPER_ADMIN_PASSWORD: SuperAdmin!123
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/usr/src/app
+    command: npm run dev
+
+volumes:
+  db_data:
