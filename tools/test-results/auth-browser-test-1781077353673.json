@@ -1,0 +1,111 @@
+{
+  "timestamp": 1781077353673,
+  "payload": {
+    "email": "test+1781077353673@example.com",
+    "password": "Password123!",
+    "name": "Test User 1781077353673",
+    "username": "testuser_1781077353673"
+  },
+  "registerRes": {
+    "status": 502,
+    "ok": false,
+    "body": null,
+    "headers": {
+      "access-control-allow-origin": "http://localhost:5173",
+      "connection": "keep-alive",
+      "content-type": "text/plain",
+      "date": "Wed, 10 Jun 2026 07:42:34 GMT",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked",
+      "vary": "Origin"
+    }
+  },
+  "refreshRes1": {
+    "status": 502,
+    "ok": false,
+    "body": null,
+    "headers": {
+      "access-control-allow-origin": "http://localhost:5173",
+      "connection": "keep-alive",
+      "content-type": "text/plain",
+      "date": "Wed, 10 Jun 2026 07:42:34 GMT",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked",
+      "vary": "Origin"
+    }
+  },
+  "logoutRes": {
+    "status": 502,
+    "ok": false,
+    "body": null,
+    "headers": {
+      "access-control-allow-origin": "http://localhost:5173",
+      "connection": "keep-alive",
+      "content-type": "text/plain",
+      "date": "Wed, 10 Jun 2026 07:42:34 GMT",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked",
+      "vary": "Origin"
+    }
+  },
+  "refreshRes2": {
+    "status": 502,
+    "ok": false,
+    "body": null,
+    "headers": {
+      "access-control-allow-origin": "http://localhost:5173",
+      "connection": "keep-alive",
+      "content-type": "text/plain",
+      "date": "Wed, 10 Jun 2026 07:42:35 GMT",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked",
+      "vary": "Origin"
+    }
+  },
+  "events": [
+    {
+      "url": "http://localhost:5173/api/auth/refresh",
+      "status": 200,
+      "headers": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-origin": "http://localhost:5173",
+        "connection": "close",
+        "content-length": "417",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "date": "Wed, 10 Jun 2026 07:42:33 GMT",
+        "etag": "W/\"1a1-sI1Xbqukpdko38BPVKNtwpDMyao\"",
+        "origin-agent-cluster": "?1",
+        "ratelimit-limit": "120",
+        "ratelimit-policy": "120;w=60",
+        "ratelimit-remaining": "119",
+        "ratelimit-reset": "60",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=15552000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "{\"accessToken\":\"<redacted>\",\"user\":{\"id\":\"530f3971-68c7-49e4-a75f-fea00bbf078b\",\"email\":\"test+1781077284707@example.com\",\"role\":\"VIEWER\",\"username\":\"testuser_1781077284707\",\"fullName\":null}}"
+    },
+    {
+      "url": "http://localhost:5173/api/auth/refresh",
+      "status": 502,
+      "headers": {
+        "access-control-allow-origin": "http://localhost:5173",
+        "connection": "keep-alive",
+        "content-type": "text/plain",
+        "date": "Wed, 10 Jun 2026 07:42:33 GMT",
+        "keep-alive": "timeout=5",
+        "transfer-encoding": "chunked",
+        "vary": "Origin"
+      },
+      "body": null
+    }
+  ]
+}

@@ -632,16 +632,24 @@ export default function VideoFeed() {
                 data-index={index}
                 className="video-container relative flex h-[calc(100vh-7rem)] snap-start items-center justify-center bg-black md:h-screen"
               >
-                <video
-                  className="absolute h-full w-full object-cover"
-                  src={video.url}
-                  loop
-                  muted
-                  autoPlay={isActive}
-                  playsInline
-                  preload={index === 0 ? 'auto' : 'metadata'}
-                  aria-label={video.title}
-                />
+                {video.url ? (
+                  <video
+                    className="absolute h-full w-full object-cover"
+                    src={video.url}
+                    loop
+                    muted
+                    autoPlay={isActive}
+                    playsInline
+                    preload={index === 0 ? 'auto' : 'metadata'}
+                    aria-label={video.title}
+                  />
+                ) : (
+                  <div className="absolute h-full w-full bg-black flex items-center justify-center text-white">
+                    <div className="text-center">
+                      <p className="text-sm">No video available</p>
+                    </div>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/20" />
                 <EngagementTracker isActive={isActive} rewardRate={video.rewardRate} />
 
