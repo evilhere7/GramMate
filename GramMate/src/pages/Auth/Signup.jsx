@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, BadgeCheck, Lock, Mail, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Input from '../../components/ui/Input';
 import Logo from '../../components/brand/Logo';
 
 export default function Signup() {
@@ -10,22 +11,27 @@ export default function Signup() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('creator');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, authProcessing } = useAuth();
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     try {
-      const { error } = await signUp(email, password, { username, role });
-      if (error) throw error;
+      await signUp(email, password, { username, fullName: '', role: role.toUpperCase() });
       navigate('/feed');
     } catch (err) {
-      setError(err.message || 'Failed to create an account');
-    } finally {
-      setLoading(false);
+      setError(err?.response?.data?.message || err.message || 'Failed to create an account');
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError('');
+    try {
+      await signInWithGoogle('/feed');
+      navigate('/feed');
+    } catch (err) {
+      setError(err?.message || 'Google sign-up failed.');
     }
   };
 
@@ -69,14 +75,14 @@ export default function Signup() {
                   <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-slate-300 py-3 pl-10 pr-3 text-slate-950" placeholder="At least 8 characters" />
                 </span>
               </label>
-              <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                {loading ? 'Creating account...' : 'Create account'}
-                {!loading && <ArrowRight size={18} />}
+              <button type="submit" disabled={authProcessing} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                {authProcessing ? 'Creating account...' : 'Create account'}
+                {!authProcessing && <ArrowRight size={18} />}
               </button>
             </form>
 
-            <button onClick={signInWithGoogle} type="button" className="mt-4 w-full rounded-md border border-slate-300 bg-white py-3 font-bold text-slate-900 hover:bg-slate-50">
-              Continue with Google
+            <button onClick={handleGoogleSignUp} type="button" disabled={authProcessing} className="mt-4 w-full rounded-md border border-slate-300 bg-white py-3 font-bold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+              {authProcessing ? 'Starting Google sign-up…' : 'Continue with Google'}
             </button>
 
             <p className="mt-8 text-center text-sm text-slate-600">

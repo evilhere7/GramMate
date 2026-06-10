@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { PrismaClient } from '@prisma/client';
 import config from '../config.js';
 import {
@@ -20,15 +22,185 @@ import {
 } from '../utils/validation.js';
 
 const prisma = new PrismaClient();
+const oauthClient = new OAuth2Client({
+  clientId: config.googleClientId,
+  clientSecret: config.googleClientSecret,
+  redirectUri: config.googleRedirectUri,
+});
+
+function safeRedirectPath(path = '/') {
+  if (typeof path !== 'string') return '/';
+  if (path.startsWith('/') && !path.startsWith('//') && !path.includes('\n') && !path.includes('\r')) {
+    return path;
+  }
+  return '/';
+}
+
+function createCallbackPage(status, redirectTo, message = '') {
+  const safeRedirect = `${config.frontendUrl}${safeRedirectPath(redirectTo)}`;
+  const encodedMessage = encodeURIComponent(message);
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GramMate authentication complete</title>
+  </head>
+  <body>
+    <script>
+      const payload = ${JSON.stringify({ status: 'success', redirectTo: safeRedirect, message })};
+      if (window.opener && window.opener.postMessage) {
+        window.opener.postMessage({ type: 'GRAMMATE_GOOGLE_AUTH', ...payload }, '*');
+        window.location.href = payload.redirectTo;
+      } else {
+        window.location.href = payload.redirectTo;
+      }
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0;url=${safeRedirect}" />
+      <p>Redirecting to GramMate...</p>
+    </noscript>
+  </body>
+</html>`;
+}
+
+async function resolveGoogleUser(payload) {
+  const email = payload.email?.toLowerCase();
+  if (!email) {
+    return null;
+  }
+
+  const existingByGoogleId = payload.sub
+    ? await prisma.user.findUnique({ where: { googleId: payload.sub } })
+    : null;
+
+  if (existingByGoogleId) {
+    return existingByGoogleId;
+  }
+
+  const existingByEmail = await prisma.user.findUnique({ where: { email } });
+  if (existingByEmail) {
+    if (existingByEmail.googleId && existingByEmail.googleId !== payload.sub) {
+      return null;
+    }
+
+    return await prisma.user.update({
+      where: { id: existingByEmail.id },
+      data: {
+        googleId: payload.sub,
+        emailVerified: true,
+        avatarUrl: existingByEmail.avatarUrl || payload.picture,
+        fullName: existingByEmail.fullName || payload.name,
+      },
+    });
+  }
+
+  const baseUsername = (email.split('@')[0] || 'grammate').replace(/[^a-zA-Z0-9_]/g, '');
+  let uniqueUsername = baseUsername || 'grammate';
+  let suffix = 0;
+  while (await prisma.user.findUnique({ where: { username: uniqueUsername } })) {
+    suffix += 1;
+    uniqueUsername = `${baseUsername}${suffix}`;
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      googleId: payload.sub,
+      username: uniqueUsername,
+      fullName: payload.name,
+      avatarUrl: payload.picture,
+      emailVerified: true,
+      role: 'VIEWER',
+    },
+  });
+
+  await prisma.wallet.create({ data: { userId: user.id } });
+  return user;
+}
 
 function setRefreshCookie(res, token, expiresAt) {
   res.cookie(config.cookieName, token, {
     httpOnly: true,
     secure: config.cookieSecure,
-    sameSite: 'lax',
+    sameSite: config.cookieSameSite,
     expires: expiresAt,
     path: '/api',
   });
+}
+
+export async function startGoogleAuth(req, res) {
+  if (!config.googleClientId || !config.googleClientSecret) {
+    return res.status(500).json({ message: 'Google OAuth is not configured' });
+  }
+
+  const redirectTo = safeRedirectPath(req.query.redirectTo || '/');
+  const state = crypto.randomBytes(24).toString('hex');
+
+  res.cookie('google_oauth_state', state, {
+    httpOnly: true,
+    secure: config.cookieSecure,
+    sameSite: config.cookieSameSite,
+    maxAge: 1000 * 60 * 10,
+    path: '/api',
+  });
+  res.cookie('google_oauth_redirect', redirectTo, {
+    httpOnly: true,
+    secure: config.cookieSecure,
+    sameSite: config.cookieSameSite,
+    maxAge: 1000 * 60 * 10,
+    path: '/api',
+  });
+
+  const authorizationUrl = oauthClient.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'select_account',
+    scope: ['openid', 'email', 'profile'],
+    state,
+  });
+
+  return res.redirect(authorizationUrl);
+}
+
+export async function googleAuthCallback(req, res) {
+  const { code, state, error, error_description } = req.query;
+  const stateCookie = req.cookies.google_oauth_state;
+  const redirectTo = safeRedirectPath(req.cookies.google_oauth_redirect || '/');
+
+  res.clearCookie('google_oauth_state', { path: '/api' });
+  res.clearCookie('google_oauth_redirect', { path: '/api' });
+
+  if (error) {
+    return res.status(400).send(createCallbackPage('error', redirectTo, error_description || error));
+  }
+
+  if (!code || !state || !stateCookie || state !== stateCookie) {
+    return res.status(400).send(createCallbackPage('error', redirectTo, 'Google authentication failed or was cancelled.'));
+  }
+
+  const tokenResponse = await oauthClient.getToken(code);
+  const idToken = tokenResponse.tokens.id_token;
+  if (!idToken) {
+    return res.status(500).send(createCallbackPage('error', redirectTo, 'Failed to validate Google login.'));
+  }
+
+  const ticket = await oauthClient.verifyIdToken({ idToken, audience: config.googleClientId });
+  const payload = ticket.getPayload();
+  if (!payload) {
+    return res.status(500).send(createCallbackPage('error', redirectTo, 'Google identity verification failed.'));
+  }
+
+  const user = await resolveGoogleUser(payload);
+  if (!user) {
+    return res.status(403).send(createCallbackPage('error', redirectTo, 'Unable to link Google account with this email.'));
+  }
+
+  const accessToken = createAccessToken(user);
+  const session = await createSession(user.id);
+  setRefreshCookie(res, session.refreshToken, session.expiresAt);
+  await audit({ actorId: user.id, entityType: 'user', entityId: user.id, action: 'user.google_authenticated' });
+
+  return res.send(createCallbackPage('success', redirectTo, 'Authentication complete.'));
 }
 
 export async function register(req, res) {
@@ -51,7 +223,7 @@ export async function register(req, res) {
       username: payload.username,
       fullName: payload.fullName,
       emailVerified: false,
-      role: 'VIEWER',
+      role: payload.role ?? 'VIEWER',
     },
   });
 
@@ -68,7 +240,7 @@ export async function register(req, res) {
 export async function login(req, res) {
   const payload = loginSchema.parse(req.body);
   const user = await prisma.user.findUnique({ where: { email: payload.email.toLowerCase() } });
-  if (!user || !(await verifyPassword(payload.password, user.passwordHash))) {
+  if (!user || !user.passwordHash || !(await verifyPassword(payload.password, user.passwordHash))) {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
 

@@ -1,59 +1,52 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { resetPassword } from '../../services/auth';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { supabase } from '../../lib/supabase';
+
+const schema = z.object({
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords must match',
+  path: ['confirmPassword'],
+});
 
 export default function ResetPassword() {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [searchParams] = useSearchParams();
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-  const [ready, setReady] = useState(false);
-  const { updatePassword } = useAuth();
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const token = searchParams.get('token') ?? '';
 
-  useEffect(() => {
-    const processRecoveryLink = async () => {
-      if (window.location.search.includes('type=recovery') || window.location.search.includes('access_token')) {
-        const { data, error: linkError } = await supabase.auth.getSessionFromUrl();
-        if (linkError) {
-          setError(linkError.message || 'Unable to process reset link.');
-          return;
-        }
-        if (data?.session) {
-          setReady(true);
-          return;
-        }
-      }
-      setReady(true);
-    };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({ resolver: zodResolver(schema) });
 
-    processRecoveryLink();
-  }, []);
+  const onSubmit = async (values) => {
+    if (!token) {
+      setError('Missing reset token. Use the reset link sent to your email.');
+      return;
+    }
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
+    try {
+      await resetPassword({ token, password: values.password });
+      setSubmitted(true);
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Unable to reset password.');
+    } finally {
+      setLoading(false);
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    const { error: updateError } = await updatePassword(password);
-    if (updateError) {
-      setError(updateError.message || 'Unable to update password.');
-      return;
-    }
-
-    setSubmitted(true);
-    setTimeout(() => navigate('/login'), 2000);
   };
 
   return (
@@ -72,11 +65,25 @@ export default function ResetPassword() {
             <Link to="/login" className="mt-4 inline-flex text-brand-600 hover:underline">Return to login</Link>
           </div>
         ) : (
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {error && <p className="rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            <Input label="New password" type="password" placeholder="********" value={password} onChange={(event) => setPassword(event.target.value)} />
-            <Input label="Confirm password" type="password" placeholder="********" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-            <Button type="submit" className="w-full" disabled={!ready}>Save password</Button>
+            <Input
+              label="New password"
+              type="password"
+              placeholder="********"
+              {...register('password')}
+              error={errors.password?.message}
+            />
+            <Input
+              label="Confirm password"
+              type="password"
+              placeholder="********"
+              {...register('confirmPassword')}
+              error={errors.confirmPassword?.message}
+            />
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Updating password…' : 'Save password'}
+            </Button>
           </form>
         )}
 

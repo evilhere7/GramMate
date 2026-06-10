@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, KeyRound, Lock, Mail, MonitorSmartphone } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Input from '../../components/ui/Input';
 import Logo from '../../components/brand/Logo';
 
 export default function Login() {
@@ -9,22 +10,17 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signIn, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword, authProcessing } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     try {
-      const { error } = await signIn(email, password);
-      if (error) throw error;
+      await signIn(email, password);
       navigate('/feed');
     } catch (err) {
-      setError(err.message || 'Failed to sign in');
-    } finally {
-      setLoading(false);
+      setError(err?.response?.data?.message || err.message || 'Failed to sign in');
     }
   };
 
@@ -33,9 +29,23 @@ export default function Login() {
       setError('Enter your email first so we know where to send the reset link.');
       return;
     }
-    const { error } = await resetPassword(email);
-    if (error) setError(error.message);
-    else setResetSent(true);
+
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Failed to send reset link');
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    try {
+      await signInWithGoogle('/feed');
+      navigate('/feed');
+    } catch (err) {
+      setError(err?.message || 'Google sign-in failed.');
+    }
   };
 
   return (
@@ -86,14 +96,14 @@ export default function Login() {
                   Reset password
                 </button>
               </div>
-              <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                {loading ? 'Signing in...' : 'Sign in'}
-                {!loading && <ArrowRight size={18} />}
+              <button type="submit" disabled={authProcessing} className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                {authProcessing ? 'Signing in...' : 'Sign in'}
+                {!authProcessing && <ArrowRight size={18} />}
               </button>
             </form>
 
-            <button onClick={signInWithGoogle} type="button" className="mt-4 w-full rounded-md border border-slate-300 bg-white py-3 font-bold text-slate-900 hover:bg-slate-50">
-              Continue with Google
+            <button onClick={handleGoogleSignIn} type="button" disabled={authProcessing} className="mt-4 w-full rounded-md border border-slate-300 bg-white py-3 font-bold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+              {authProcessing ? 'Starting Google sign-in…' : 'Continue with Google'}
             </button>
 
             <p className="mt-8 text-center text-sm text-slate-600">
