@@ -3,80 +3,18 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  VIEWER
-  CREATOR
-  ADMIN
-  MODERATOR
-  SUPER_ADMIN
-}
-
-enum VideoVisibility {
-  PUBLIC
-  UNLISTED
-  SCHEDULED
-  PRIVATE
-}
-
-enum ProcessingStatus {
-  QUEUED
-  PROCESSING
-  READY
-  FAILED
-}
-
-enum ModerationStatus {
-  PENDING
-  APPROVED
-  LIMITED
-  REMOVED
-  APPEALED
-}
-
-enum TransactionType {
-  WATCH_REWARD
-  ENGAGEMENT_REWARD
-  CAMPAIGN_REWARD
-  AD_SHARE
-  TIP
-  DONATION
-  SPONSORSHIP
-  WITHDRAWAL
-  ADJUSTMENT
-}
-
-enum TransactionStatus {
-  PENDING
-  CLEARED
-  REVIEW
-  FAILED
-  REVERSED
-}
-
-enum ReportStatus {
-  OPEN
-  REVIEWING
-  RESOLVED
-  DISMISSED
-}
-
-enum RiskLevel {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
+// Enums removed for SQLite local dev; fields using these enums are stored as strings.
 
 model User {
   id                String        @id @default(uuid())
   email             String        @unique
   passwordHash      String?
   googleId          String?       @unique
-  role              Role          @default(VIEWER)
+  role              String        @default("VIEWER")
   isSuperAdmin      Boolean       @default(false)
   username          String        @unique
   fullName          String?
@@ -90,10 +28,13 @@ model User {
   sessions          Session[]
   auditLogs         AuditLog[]    @relation("AuditActor")
   auditTargets      AuditLog[]    @relation("AuditTarget")
-  supportTickets    SupportTicket[]
+  supportTickets    SupportTicket[] @relation("SupportTicketUser")
+  assignedSupportTickets SupportTicket[] @relation("SupportTicketAssignedTo")
   transactions      Transaction[]
   reportsCreated    Report[]      @relation("Reporter")
   reportsAssigned   Report[]      @relation("AssignedTo")
+  reportsAgainst    Report[]
+  passwordResets    PasswordReset[]
 }
 
 model Session {
@@ -123,15 +64,16 @@ model Video {
   videoUrl          String
   thumbnailUrl      String?
   category          String           @default("General")
-  visibility        VideoVisibility  @default(PUBLIC)
-  processingStatus  ProcessingStatus @default(QUEUED)
-  moderationStatus  ModerationStatus @default(PENDING)
+  visibility        String  @default("PUBLIC")
+  processingStatus  String  @default("QUEUED")
+  moderationStatus  String  @default("PENDING")
   rewardRatePerMin  Float            @default(0.01)
   viewsCount        Int              @default(0)
   likesCount        Int              @default(0)
   commentsCount     Int              @default(0)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+  reports           Report[]
 }
 
 model Wallet {
@@ -153,11 +95,11 @@ model Transaction {
   user           User              @relation(fields: [userId], references: [id])
   userId         String
   amountCents    Int
-  type           TransactionType
-  status         TransactionStatus @default(PENDING)
+  type           String
+  status         String @default("PENDING")
   referenceId    String?
   riskScore      Int               @default(0)
-  metadata       Json              @default("{}")
+  metadata       String            @default("{}")
   createdAt      DateTime          @default(now())
 }
 
@@ -170,7 +112,7 @@ model Report {
   video        Video?       @relation(fields: [videoId], references: [id])
   videoId      String?
   reason       String
-  status       ReportStatus @default(OPEN)
+  status       String @default("OPEN")
   assignedTo   User?        @relation("AssignedTo", fields: [assignedToId], references: [id])
   assignedToId String?
   resolution   String?
@@ -179,27 +121,29 @@ model Report {
 }
 
 model SupportTicket {
-  id          String    @id @default(uuid())
-  user        User?     @relation(fields: [userId], references: [id])
-  userId      String?
-  subject     String
-  status      String    @default("open")
-  priority    RiskLevel @default(LOW)
-  assignedTo  User?     @relation(fields: [assignedToId], references: [id])
+  id           String    @id @default(uuid())
+  user         User?     @relation("SupportTicketUser", fields: [userId], references: [id])
+  userId       String?
+  subject      String
+  status       String    @default("open")
+  priority     String @default("LOW")
+  assignedTo   User?     @relation("SupportTicketAssignedTo", fields: [assignedToId], references: [id])
   assignedToId String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model AuditLog {
   id          String   @id @default(uuid())
   actor       User?    @relation("AuditActor", fields: [actorId], references: [id])
   actorId     String?
+  target      User?    @relation("AuditTarget", fields: [targetId], references: [id])
+  targetId    String?
   entityType  String
   entityId    String?
   action      String
-  beforeState Json?
-  afterState  Json?
+  beforeState String?
+  afterState  String?
   createdAt   DateTime @default(now())
 }
 

@@ -24,7 +24,7 @@ import {
 export const videos = [
   {
     id: 'city-food',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    url: '',
     title: 'Street food tour in 60 seconds',
     creator: 'Maya Chen',
     handle: 'mayaeats',
@@ -40,7 +40,7 @@ export const videos = [
   },
   {
     id: 'studio-workflow',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    url: '',
     title: 'How I plan a creator shoot',
     creator: 'Jon Bell',
     handle: 'joncreates',
@@ -56,7 +56,7 @@ export const videos = [
   },
   {
     id: 'finance-basics',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    url: '',
     title: 'Creator taxes: three basics',
     creator: 'Ari Lane',
     handle: 'ari.money',
