@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import SplashLogo from '../components/brand/SplashLogo';
-import firebaseAuth from '../services/firebaseAuth';
+import supabaseAuth from '../services/supabaseAuth';
 
 const AuthContext = createContext();
 
@@ -13,15 +13,14 @@ export function AuthProvider({ children }) {
 
   const restoreSession = useCallback(async () => {
     setLoading(true);
-    // Session is restored by Firebase on page load; we ensure loading state
-    // is toggled while the onAuthChanged listener initializes in useEffect.
+    // Session is restored by Supabase on page load; ensure loading toggles
     setLoading(false);
     return null;
   }, []);
 
   useEffect(() => {
-    // Subscribe to Firebase auth state; updates user and loading accordingly
-    const unsubscribe = firebaseAuth.onAuthChanged((u) => {
+    // Subscribe to Supabase auth state; updates user and loading accordingly
+    const unsubscribe = supabaseAuth.onAuthChanged((u) => {
       setUser(u);
       setLoading(false);
     });
@@ -32,7 +31,7 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     setAuthProcessing(true);
     try {
-      const response = await firebaseAuth.signInWithEmail({ email, password });
+      const response = await supabaseAuth.signInWithEmail({ email, password });
       toast.success('Welcome back!');
       return response;
     } catch (error) {
@@ -45,7 +44,7 @@ export function AuthProvider({ children }) {
   const signUp = async (email, password, metadata = {}) => {
     setAuthProcessing(true);
     try {
-      const response = await firebaseAuth.signUpWithEmail({
+      const response = await supabaseAuth.signUpWithEmail({
         email,
         password,
         displayName: metadata.fullName || metadata.displayName,
@@ -65,7 +64,11 @@ export function AuthProvider({ children }) {
     try {
       toast.info('Select a Google account');
       toast.info('Opening Google...', { autoClose: 2000 });
-      const response = await firebaseAuth.signInWithGoogle();
+      const response = await supabaseAuth.signInWithGoogle();
+      // If response contains a URL, redirect the browser there (OAuth redirect flow)
+      if (response?.url) {
+        window.location.href = response.url;
+      }
       toast.success('Successfully signed in with Google');
       return response;
     } catch (error) {
@@ -88,7 +91,7 @@ export function AuthProvider({ children }) {
   const signOut = async () => {
     setAuthProcessing(true);
     try {
-      await firebaseAuth.logout();
+      await supabaseAuth.signOutUser();
       setUser(null);
       toast.success('Signed out successfully');
     } finally {
@@ -99,7 +102,7 @@ export function AuthProvider({ children }) {
   const resetPassword = async (email) => {
     setAuthProcessing(true);
     try {
-      await firebaseAuth.sendResetPasswordEmail(email);
+      await supabaseAuth.sendResetPasswordEmail(email, window.location.origin + '/auth/reset-password');
       toast.success('If the account exists, a password reset email has been sent.');
       return { error: null };
     } finally {
@@ -110,7 +113,7 @@ export function AuthProvider({ children }) {
   const updatePassword = async (newPassword) => {
     setAuthProcessing(true);
     try {
-      await firebaseAuth.updatePassword(newPassword);
+      await supabaseAuth.updatePassword(newPassword);
       toast.success('Password updated successfully');
       return true;
     } finally {

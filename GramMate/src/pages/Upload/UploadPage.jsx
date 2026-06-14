@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { CalendarClock, CheckCircle, FileVideo, ImagePlus, ShieldCheck, UploadCloud, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { uploadChecklist } from '../../data/platformData';
 
@@ -51,29 +50,8 @@ export default function UploadPage() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage.from('videos').upload(fileName, file, {
-        cacheControl: '31536000',
-        upsert: false,
-      });
-      if (uploadError) throw uploadError;
-
-      setProgress(50);
-      const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(fileName);
-      setProgress(75);
-
-      const { error: dbError } = await supabase.from('videos').insert({
-        user_id: user.id,
-        title,
-        description,
-        category,
-        visibility,
-        processing_status: 'queued',
-        moderation_status: 'pending',
-        video_url: publicUrl,
-        created_at: new Date().toISOString(),
-      });
-      if (dbError) throw dbError;
-
+      // Use centralized helper to upload and create DB record
+      const { publicUrl } = await import('../../services/supabaseService').then(m => m.uploadVideo(file, user.id, { title, description, category, visibility }));
       setProgress(100);
       setSuccess(true);
       resetForm();

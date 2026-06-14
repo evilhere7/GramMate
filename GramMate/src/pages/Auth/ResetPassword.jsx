@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { confirmPasswordReset } from '../../services/firebaseAuth';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
@@ -15,13 +14,31 @@ const schema = z.object({
   path: ['confirmPassword'],
 });
 
+async function updatePasswordWithAccessToken(supabaseUrl, accessToken, newPassword) {
+  const res = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.message || `Failed to update password (${res.status})`);
+  }
+  return res.json();
+}
+
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const token = searchParams.get('oobCode') ?? searchParams.get('token') ?? '';
+
+  // Supabase sends an access_token in the URL after the user clicks the reset link
+  const token = searchParams.get('access_token') ?? searchParams.get('token') ?? searchParams.get('oobCode') ?? '';
 
   const {
     register,
@@ -39,11 +56,13 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      await confirmPasswordReset(token, values.password);
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!SUPABASE_URL) throw new Error('Missing SUPABASE_URL in environment');
+      await updatePasswordWithAccessToken(SUPABASE_URL, token, values.password);
       setSubmitted(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Unable to reset password.');
+      setError(err?.message || 'Unable to reset password.');
     } finally {
       setLoading(false);
     }
