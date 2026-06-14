@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { CalendarClock, CheckCircle, FileVideo, ImagePlus, ShieldCheck, UploadCloud, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { uploadVideo } from '../../services/supabaseService';
 import { uploadChecklist } from '../../data/platformData';
 
 export default function UploadPage() {
@@ -51,7 +52,7 @@ export default function UploadPage() {
       const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
       // Use centralized helper to upload and create DB record
-      const { publicUrl } = await import('../../services/supabaseService').then(m => m.uploadVideo(file, user.id, { title, description, category, visibility }));
+      const { publicUrl } = await uploadVideo(file, user.id, { title, description, category, visibility });
       setProgress(100);
       setSuccess(true);
       resetForm();
