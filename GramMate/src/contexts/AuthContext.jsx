@@ -2,15 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import SplashLogo from '../components/brand/SplashLogo';
-import {
-  login as apiLogin,
-  register as apiRegister,
-  refreshSession,
-  logout as apiLogout,
-  requestPasswordReset,
-  resetPassword as apiResetPassword,
-} from '../services/auth';
-import { setAuthToken, clearAuthToken } from '../services/api';
+import firebaseAuth from '../services/firebaseAuth';
 
 const AuthContext = createContext();
 
@@ -21,32 +13,26 @@ export function AuthProvider({ children }) {
 
   const restoreSession = useCallback(async () => {
     setLoading(true);
-    try {
-      const response = await refreshSession();
-      if (response?.accessToken) {
-        setAuthToken(response.accessToken);
-      }
-      setUser(response?.user ?? null);
-      return response;
-    } catch (error) {
-      clearAuthToken();
-      setUser(null);
-      return null;
-    } finally {
-      setLoading(false);
-    }
+    // Session is restored by Firebase on page load; we ensure loading state
+    // is toggled while the onAuthChanged listener initializes in useEffect.
+    setLoading(false);
+    return null;
   }, []);
 
   useEffect(() => {
-    restoreSession();
+    // Subscribe to Firebase auth state; updates user and loading accordingly
+    const unsubscribe = firebaseAuth.onAuthChanged((u) => {
+      setUser(u);
+      setLoading(false);
+    });
+
+    return () => unsubscribe && unsubscribe();
   }, [restoreSession]);
 
   const signIn = async (email, password) => {
     setAuthProcessing(true);
     try {
-      const response = await apiLogin({ email, password });
-      setAuthToken(response.accessToken);
-      setUser(response.user);
+      const response = await firebaseAuth.signInWithEmail({ email, password });
       toast.success('Welcome back!');
       return response;
     } catch (error) {
@@ -59,10 +45,12 @@ export function AuthProvider({ children }) {
   const signUp = async (email, password, metadata = {}) => {
     setAuthProcessing(true);
     try {
-      const response = await apiRegister({ email, password, ...metadata });
-      setAuthToken(response.accessToken);
-      setUser(response.user);
-      toast.success('Account created successfully');
+      const response = await firebaseAuth.signUpWithEmail({
+        email,
+        password,
+        displayName: metadata.fullName || metadata.displayName,
+      });
+      toast.success('Account created successfully. Check your email for verification.');
       return response;
     } catch (error) {
       throw error;
@@ -71,65 +59,36 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signInWithGoogle = async (redirectTo = '/feed') => {
+  const signInWithGoogle = async () => {
+    if (authProcessing) return;
     setAuthProcessing(true);
-    const apiBase = import.meta.env.VITE_API_URL ?? '/api';
-    const authUrl = `${apiBase.replace(/\/$/, '')}/auth/google/redirect?redirectTo=${encodeURIComponent(redirectTo)}`;
-    const popup = window.open(authUrl, 'GramMateGoogleAuth', 'popup=yes,toolbar=no,location=no,status=no,menubar=no,width=520,height=720');
-
-    if (!popup) {
-      window.location.href = authUrl;
-      return;
-    }
-
-    return new Promise((resolve, reject) => {
-      const handleMessage = async (event) => {
-        if (event?.data?.type !== 'GRAMMATE_GOOGLE_AUTH') return;
-
-        const origin = new URL(apiBase, window.location.origin).origin;
-        if (event.origin !== window.location.origin && event.origin !== origin) {
-          return;
-        }
-
-        window.removeEventListener('message', handleMessage);
-        popup.close();
-
-        if (event.data.status === 'success') {
-          try {
-            const session = await restoreSession();
-            if (!session) {
-              throw new Error('Google authentication succeeded, but session restoration failed.');
-            }
-            toast.success('Signed in with Google successfully');
-            resolve(session);
-          } catch (error) {
-            reject(error);
-          }
-          return;
-        }
-
-        reject(new Error(event.data.message || 'Google authentication failed.'));
-      };
-
-      const intervalId = window.setInterval(() => {
-        if (popup.closed) {
-          window.clearInterval(intervalId);
-          window.removeEventListener('message', handleMessage);
-          reject(new Error('Google sign-in was cancelled or blocked.'));
-        }
-      }, 500);
-
-      window.addEventListener('message', handleMessage);
-    }).finally(() => {
+    try {
+      toast.info('Select a Google account');
+      toast.info('Opening Google...', { autoClose: 2000 });
+      const response = await firebaseAuth.signInWithGoogle();
+      toast.success('Successfully signed in with Google');
+      return response;
+    } catch (error) {
+      const msg = error?.message || '';
+      if (msg.toLowerCase().includes('popup-closed') || msg.toLowerCase().includes('popup closed')) {
+        toast.error('Google sign-in was closed before completing. Try again.');
+      } else if (msg.toLowerCase().includes('network')) {
+        toast.error('Network error during Google sign-in. Check your connection.');
+      } else if (msg.toLowerCase().includes('account already exists')) {
+        toast.error(msg);
+      } else {
+        toast.error('Google authentication failed.');
+      }
+      throw error;
+    } finally {
       setAuthProcessing(false);
-    });
+    }
   };
 
   const signOut = async () => {
     setAuthProcessing(true);
     try {
-      await apiLogout();
-      clearAuthToken();
+      await firebaseAuth.logout();
       setUser(null);
       toast.success('Signed out successfully');
     } finally {
@@ -140,16 +99,23 @@ export function AuthProvider({ children }) {
   const resetPassword = async (email) => {
     setAuthProcessing(true);
     try {
-      const response = await requestPasswordReset({ email });
-      toast.success('Password reset link sent if the account exists.');
-      return response;
+      await firebaseAuth.sendResetPasswordEmail(email);
+      toast.success('If the account exists, a password reset email has been sent.');
+      return { error: null };
     } finally {
       setAuthProcessing(false);
     }
   };
 
-  const updatePassword = async (payload) => {
-    return apiResetPassword(payload);
+  const updatePassword = async (newPassword) => {
+    setAuthProcessing(true);
+    try {
+      await firebaseAuth.updatePassword(newPassword);
+      toast.success('Password updated successfully');
+      return true;
+    } finally {
+      setAuthProcessing(false);
+    }
   };
 
   const value = {

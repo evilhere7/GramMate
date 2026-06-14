@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { resetPassword } from '../../services/auth';
+import { confirmPasswordReset } from '../../services/firebaseAuth';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
@@ -21,7 +21,7 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get('oobCode') ?? searchParams.get('token') ?? '';
 
   const {
     register,
@@ -39,7 +39,7 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      await resetPassword({ token, password: values.password });
+      await confirmPasswordReset(token, values.password);
       setSubmitted(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
