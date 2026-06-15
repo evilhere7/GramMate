@@ -2,6 +2,7 @@
   "name": "grammate-root",
   "version": "1.0.0",
   "private": true,
+  "workspaces": ["GramMate"],
   "scripts": {
     "dev": "npm run dev --prefix GramMate",
     "build": "npm run build --prefix GramMate",
