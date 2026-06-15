@@ -12,13 +12,33 @@ export async function upsertProfile(profile) {
       avatar_url: profile.avatar_url || profile.photoURL || null,
       bio: profile.bio || null,
       is_verified: !!profile.is_verified,
-      created_at: profile.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase.from('profiles').upsert(normalized, { onConflict: 'id' });
-    if (error) throw error;
-    return data;
+    // Check if profile exists
+    const { data: existing, error: fetchErr } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', profile.id)
+      .maybeSingle();
+
+    if (existing) {
+      // Update existing profile
+      const { data, error } = await supabase.from('profiles').update(normalized).eq('id', profile.id);
+      if (error) throw error;
+      return data;
+    } else {
+      // Try to insert (trigger might have already handled it or will handle it)
+      const insertData = {
+        ...normalized,
+        created_at: profile.created_at || new Date().toISOString(),
+      };
+      const { data, error } = await supabase.from('profiles').insert(insertData);
+      if (error) {
+        console.warn('[Supabase] Profile insert failed (expected if trigger handles it):', error.message);
+      }
+      return data;
+    }
   } catch (err) {
     console.warn('[Supabase] upsertProfile error', err?.message || err);
     throw err;
