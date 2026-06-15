@@ -4,20 +4,16 @@ const supabase = getSupabaseClient;
 
 export async function upsertProfile(profile) {
   try {
-    // Normalize fields and assign admin role automatically for configured admin email
-    const adminEmail = process.env.SUPABASE_ADMIN_EMAIL || 'evilmc777@gmail.com';
+    const adminEmail = (typeof process !== 'undefined' && process.env?.SUPABASE_ADMIN_EMAIL) || 'evilmc777@gmail.com';
     const normalized = {
       id: profile.id,
-      email: profile.email || null,
-      username: profile.username || profile.email?.split('@')[0] || null,
-      display_name: profile.displayName || profile.display_name || null,
-      avatar_url: profile.photoURL || profile.avatar_url || null,
+      username: profile.username || null,
+      full_name: profile.full_name || profile.displayName || profile.fullName || null,
+      avatar_url: profile.avatar_url || profile.photoURL || null,
       bio: profile.bio || null,
       is_verified: !!profile.is_verified,
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      last_login: profile.last_login || new Date().toISOString(),
-      role: profile.role || (profile.email === adminEmail ? 'admin' : 'user'),
     };
 
     const { data, error } = await supabase.from('profiles').upsert(normalized, { onConflict: 'id' });

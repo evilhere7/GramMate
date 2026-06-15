@@ -47,9 +47,9 @@ export function AuthProvider({ children }) {
       const response = await supabaseAuth.signUpWithEmail({
         email,
         password,
-        displayName: metadata.fullName || metadata.displayName,
+        displayName: metadata.fullName || metadata.displayName || metadata.username,
       });
-      toast.success('Account created successfully. Check your email for verification.');
+      toast.success('Welcome! Account created successfully.');
       return response;
     } catch (error) {
       throw error;
@@ -62,13 +62,8 @@ export function AuthProvider({ children }) {
     if (authProcessing) return;
     setAuthProcessing(true);
     try {
-      toast.info('Select a Google account');
-      toast.info('Opening Google...', { autoClose: 2000 });
+      toast.info('Opening Google account chooser...');
       const response = await supabaseAuth.signInWithGoogle();
-      // If response contains a URL, redirect the browser there (OAuth redirect flow)
-      if (response?.url) {
-        window.location.href = response.url;
-      }
       toast.success('Successfully signed in with Google');
       return response;
     } catch (error) {
@@ -105,6 +100,8 @@ export function AuthProvider({ children }) {
       await supabaseAuth.sendResetPasswordEmail(email, window.location.origin + '/auth/reset-password');
       toast.success('If the account exists, a password reset email has been sent.');
       return { error: null };
+    } catch (error) {
+      return { error };
     } finally {
       setAuthProcessing(false);
     }

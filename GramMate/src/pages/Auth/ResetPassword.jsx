@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import supabaseAuth from '../../services/supabaseAuth';
 
 const schema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -14,22 +15,6 @@ const schema = z.object({
   path: ['confirmPassword'],
 });
 
-async function updatePasswordWithAccessToken(supabaseUrl, accessToken, newPassword) {
-  const res = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ password: newPassword }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.message || `Failed to update password (${res.status})`);
-  }
-  return res.json();
-}
-
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const [submitted, setSubmitted] = useState(false);
@@ -37,8 +22,8 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Supabase sends an access_token in the URL after the user clicks the reset link
-  const token = searchParams.get('access_token') ?? searchParams.get('token') ?? searchParams.get('oobCode') ?? '';
+  // Supabase sends an access_token in the URL after the user clicks the reset link, Firebase uses oobCode
+  const token = searchParams.get('oobCode') ?? searchParams.get('access_token') ?? searchParams.get('token') ?? '';
 
   const {
     register,
@@ -56,9 +41,7 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (!SUPABASE_URL) throw new Error('Missing SUPABASE_URL in environment');
-      await updatePasswordWithAccessToken(SUPABASE_URL, token, values.password);
+      await supabaseAuth.confirmPasswordReset(token, values.password);
       setSubmitted(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
