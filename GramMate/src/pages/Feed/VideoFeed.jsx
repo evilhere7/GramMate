@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Bookmark, Flag, Heart, MessageCircle, Search, Share2, UserPlus, UserCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

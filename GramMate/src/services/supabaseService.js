@@ -4,7 +4,6 @@ const supabase = getSupabaseClient;
 
 export async function upsertProfile(profile) {
   try {
-    const adminEmail = (typeof process !== 'undefined' && process.env?.SUPABASE_ADMIN_EMAIL) || 'evilmc777@gmail.com';
     const normalized = {
       id: profile.id,
       user_id: profile.user_id || profile.id,
@@ -25,6 +24,7 @@ export async function upsertProfile(profile) {
       .select('id')
       .eq('id', profile.id)
       .maybeSingle();
+    if (fetchErr) throw fetchErr;
 
     if (existing) {
       // Update existing profile
@@ -64,7 +64,7 @@ export async function uploadAvatar(file, userId) {
   if (!file) throw new Error('No file provided');
   const bucket = 'avatars';
   const path = `public/${userId}/${Date.now()}-${file.name}`;
-  const { data, error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: true });
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: true });
   if (error) throw error;
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
   return urlData.publicUrl;

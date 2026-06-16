@@ -115,7 +115,7 @@ export function useVideoUpload() {
     } catch (uploadError) {
       const friendly = uploadError?.message || 'Upload failed, please try again';
       setError(friendly);
-      throw new Error(friendly);
+      throw new Error(friendly, { cause: uploadError });
     } finally {
       setUploading(false);
     }

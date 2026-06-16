@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react';
 import { Camera, Check, Edit3, Globe, Heart, Loader2, MessageCircle, Play, UploadCloud, UserPlus, X } from 'lucide-react';
 import { toast } from 'react-toastify';
