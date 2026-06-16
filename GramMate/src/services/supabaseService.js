@@ -7,9 +7,13 @@ export async function upsertProfile(profile) {
     const adminEmail = (typeof process !== 'undefined' && process.env?.SUPABASE_ADMIN_EMAIL) || 'evilmc777@gmail.com';
     const normalized = {
       id: profile.id,
+      user_id: profile.user_id || profile.id,
       username: profile.username || null,
+      display_name: profile.display_name || profile.full_name || profile.displayName || profile.fullName || null,
       full_name: profile.full_name || profile.displayName || profile.fullName || null,
       avatar_url: profile.avatar_url || profile.photoURL || null,
+      banner_url: profile.banner_url || profile.cover_url || null,
+      website: profile.website || null,
       bio: profile.bio || null,
       is_verified: !!profile.is_verified,
       updated_at: new Date().toISOString(),
@@ -60,7 +64,7 @@ export async function uploadAvatar(file, userId) {
   if (!file) throw new Error('No file provided');
   const bucket = 'avatars';
   const path = `public/${userId}/${Date.now()}-${file.name}`;
-  const { data, error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: false });
+  const { data, error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: true });
   if (error) throw error;
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
   return urlData.publicUrl;
@@ -72,17 +76,19 @@ export async function uploadVideo(file, userId, { title, description, category, 
   const ext = file.name.split('.').pop();
   const filePath = `${userId}/${crypto.randomUUID()}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file, { cacheControl: '31536000', upsert: false });
+  const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file, { cacheControl: '31536000', upsert: true });
   if (uploadError) throw uploadError;
 
   const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
   const { error: dbError } = await supabase.from('videos').insert({
+    creator_id: userId,
     user_id: userId,
     title,
     description,
     category,
     visibility,
+    status: visibility === 'public' ? 'published' : 'draft',
     processing_status: 'queued',
     moderation_status: 'pending',
     video_url: publicUrl,

@@ -24,8 +24,8 @@ function App() {
           <Route path="explore" element={<VideoFeed />} />
           <Route path="wallet" element={<ProtectedRoute><WalletDashboard /></ProtectedRoute>} />
           <Route path="profile/me" element={<ProtectedRoute><CreatorProfilePage /></ProtectedRoute>} />
-          <Route path="upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-          <Route path="studio" element={<ProtectedRoute><CreatorStudio /></ProtectedRoute>} />
+          <Route path="upload" element={<ProtectedRoute requireCreator><UploadPage /></ProtectedRoute>} />
+          <Route path="studio" element={<ProtectedRoute requireCreator><CreatorStudio /></ProtectedRoute>} />
           <Route path="admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
         </Route>
 

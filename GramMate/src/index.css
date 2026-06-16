@@ -1,84 +1,362 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+
+/* ═══════════════════════════════════════════════════════════
+   GramMate Design System — Dark-First Creator Economy Theme
+   ═══════════════════════════════════════════════════════════ */
 
 @theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-background: var(--gm-bg);
+  --color-foreground: var(--gm-text);
+  --color-primary: var(--gm-brand);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--gm-accent);
+  --color-secondary-foreground: #ffffff;
+  --color-muted: var(--gm-surface);
+  --color-muted-foreground: var(--gm-text-secondary);
+  --color-accent: var(--gm-accent);
+  --color-accent-foreground: #ffffff;
+  --color-border: var(--gm-border);
+  --color-input: var(--gm-border);
+  --color-ring: var(--gm-brand);
+
+  /* Brand Colors */
+  --color-brand: var(--gm-brand);
+  --color-brand-light: var(--gm-brand-light);
+  --color-brand-dark: var(--gm-brand-dark);
+  --color-cyan: var(--gm-accent);
+  --color-cyan-light: var(--gm-accent-light);
+
+  /* Surfaces */
+  --color-surface: var(--gm-surface);
+  --color-surface-elevated: var(--gm-surface-elevated);
+  --color-surface-overlay: var(--gm-surface-overlay);
+
+  /* Semantic */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #F43F5E;
+  --color-info: var(--gm-brand);
+
+  /* Shadows */
+  --shadow-soft: 0 4px 24px -4px rgba(0, 0, 0, 0.12);
+  --shadow-elevated: 0 12px 40px -8px rgba(0, 0, 0, 0.2);
+  --shadow-glow-brand: 0 0 20px -4px var(--gm-brand);
+  --shadow-glow-accent: 0 0 20px -4px var(--gm-accent);
 }
 
+/* ─── Dark Mode (Default) ─── */
 @layer base {
   :root {
-    --background: #ffffff;
-    --foreground: #111827;
-    
-    --primary: #2563eb;
-    --primary-foreground: #ffffff;
-    
-    --secondary: #0f172a;
-    --secondary-foreground: #ffffff;
-    
-    --muted: #f8fafc;
-    --muted-foreground: #64748b;
-    
-    --accent: #eef2ff;
-    --accent-foreground: #1e3a8a;
-    
-    --border: #e5e7eb;
-    --input: #d1d5db;
-    --ring: #2563eb;
+    --gm-bg: #0B0B1A;
+    --gm-bg-alt: #0F0F23;
+    --gm-surface: #141428;
+    --gm-surface-elevated: #1A1A35;
+    --gm-surface-overlay: rgba(20, 20, 40, 0.85);
+    --gm-text: #F0F0F8;
+    --gm-text-secondary: #8B8BA3;
+    --gm-text-tertiary: #5B5B73;
+    --gm-border: rgba(255, 255, 255, 0.08);
+    --gm-border-strong: rgba(255, 255, 255, 0.14);
+    --gm-brand: #7C3AED;
+    --gm-brand-light: #8B5CF6;
+    --gm-brand-dark: #6D28D9;
+    --gm-brand-glow: rgba(124, 58, 237, 0.15);
+    --gm-accent: #06B6D4;
+    --gm-accent-light: #22D3EE;
+    --gm-accent-glow: rgba(6, 182, 212, 0.12);
+    --gm-gradient-brand: linear-gradient(135deg, #7C3AED, #06B6D4);
+    --gm-gradient-surface: linear-gradient(180deg, #141428, #0B0B1A);
+    --gm-gradient-hero: linear-gradient(135deg, #0B0B1A 0%, #1A0A3E 50%, #0B1A2E 100%);
+    --gm-glass-bg: rgba(20, 20, 40, 0.6);
+    --gm-glass-border: rgba(255, 255, 255, 0.06);
+    color-scheme: dark;
   }
-  
-  .dark {
-    --background: #ffffff;
-    --foreground: #111827;
-    
-    --primary: #2563eb;
-    --primary-foreground: #ffffff;
-    
-    --secondary: #0f172a;
-    --secondary-foreground: #ffffff;
-    
-    --muted: #f8fafc;
-    --muted-foreground: #64748b;
-    
-    --accent: #eef2ff;
-    --accent-foreground: #1e3a8a;
-    
-    --border: #e5e7eb;
-    --input: #d1d5db;
-    --ring: #2563eb;
+
+  /* ─── Light Mode ─── */
+  .light {
+    --gm-bg: #F8F8FC;
+    --gm-bg-alt: #FFFFFF;
+    --gm-surface: #FFFFFF;
+    --gm-surface-elevated: #F3F3FA;
+    --gm-surface-overlay: rgba(255, 255, 255, 0.9);
+    --gm-text: #1A1A2E;
+    --gm-text-secondary: #64648C;
+    --gm-text-tertiary: #9898B0;
+    --gm-border: rgba(0, 0, 0, 0.08);
+    --gm-border-strong: rgba(0, 0, 0, 0.14);
+    --gm-brand: #7C3AED;
+    --gm-brand-light: #8B5CF6;
+    --gm-brand-dark: #6D28D9;
+    --gm-brand-glow: rgba(124, 58, 237, 0.08);
+    --gm-accent: #0891B2;
+    --gm-accent-light: #06B6D4;
+    --gm-accent-glow: rgba(6, 182, 212, 0.06);
+    --gm-gradient-brand: linear-gradient(135deg, #7C3AED, #06B6D4);
+    --gm-gradient-surface: linear-gradient(180deg, #FFFFFF, #F8F8FC);
+    --gm-gradient-hero: linear-gradient(135deg, #F8F8FC 0%, #EDE9FE 50%, #E0F2FE 100%);
+    --gm-glass-bg: rgba(255, 255, 255, 0.7);
+    --gm-glass-border: rgba(0, 0, 0, 0.06);
+    color-scheme: light;
   }
 }
 
+/* ─── Base Styles ─── */
 @layer base {
   * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20;
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  }
-
-  a, button, input, textarea, select {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+    border-color: var(--gm-border);
   }
 
   html {
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--gm-bg);
+    color: var(--gm-text);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  ::selection {
+    background-color: var(--gm-brand);
+    color: white;
+  }
+
+  /* Focus states */
+  a, button, input, textarea, select, [tabindex] {
+    &:focus-visible {
+      outline: 2px solid var(--gm-brand);
+      outline-offset: 2px;
+    }
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--gm-text-tertiary);
+    border-radius: 100px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--gm-text-secondary);
   }
 }
 
-/* Hide scrollbar for video feed */
+/* ─── Typography Scale ─── */
+@layer utilities {
+  .text-display {
+    font-size: 3.5rem;
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .text-h1 {
+    font-size: 2.25rem;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .text-h2 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .text-h3 {
+    font-size: 1.125rem;
+    line-height: 1.35;
+    font-weight: 600;
+  }
+  .text-body {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  .text-caption {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .text-overline {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+}
+
+/* ─── Gradient Utilities ─── */
+@layer utilities {
+  .gradient-brand {
+    background: var(--gm-gradient-brand);
+  }
+  .gradient-text {
+    background: var(--gm-gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-hero {
+    background: var(--gm-gradient-hero);
+  }
+  .gradient-surface {
+    background: var(--gm-gradient-surface);
+  }
+}
+
+/* ─── Glass Utilities ─── */
+@layer utilities {
+  .glass {
+    background: var(--gm-glass-bg);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--gm-glass-border);
+  }
+  .glass-strong {
+    background: var(--gm-glass-bg);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid var(--gm-glass-border);
+  }
+}
+
+/* ─── Animation Keyframes ─── */
+@layer base {
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 var(--gm-brand-glow); }
+    50% { box-shadow: 0 0 16px 4px var(--gm-brand-glow); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ─── Animation Utilities ─── */
+@layer utilities {
+  .animate-fade-in { animation: fadeIn 0.4s ease-out both; }
+  .animate-fade-in-up { animation: fadeInUp 0.5s ease-out both; }
+  .animate-fade-in-down { animation: fadeInDown 0.5s ease-out both; }
+  .animate-slide-in-right { animation: slideInRight 0.5s ease-out both; }
+  .animate-slide-in-left { animation: slideInLeft 0.5s ease-out both; }
+  .animate-scale-in { animation: scaleIn 0.3s ease-out both; }
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 30%, var(--gm-border) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+  .animate-float { animation: float 3s ease-in-out infinite; }
+  .animate-spin-slow { animation: spin-slow 6s linear infinite; }
+  .animate-count-up { animation: countUp 0.6s ease-out both; }
+
+  /* Staggered delays for children */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+}
+
+/* ─── Interactive Utilities ─── */
+@layer utilities {
+  .interactive {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .interactive:hover {
+    transform: translateY(-1px);
+  }
+  .interactive:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .card-hover {
+    transition: all 0.25s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevated);
+    border-color: var(--gm-border-strong);
+  }
+
+  .glow-brand:hover {
+    box-shadow: var(--shadow-glow-brand);
+  }
+  .glow-accent:hover {
+    box-shadow: var(--shadow-glow-accent);
+  }
+}
+
+/* ─── Surface Utilities ─── */
+@layer utilities {
+  .surface {
+    background-color: var(--gm-surface);
+    border: 1px solid var(--gm-border);
+  }
+  .surface-elevated {
+    background-color: var(--gm-surface-elevated);
+    border: 1px solid var(--gm-border);
+  }
+  .surface-brand {
+    background: var(--gm-brand-glow);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+  }
+  .surface-accent {
+    background: var(--gm-accent-glow);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+  }
+}
+
+/* ─── Scrollbar Hiding ─── */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

@@ -1,41 +1,113 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, Compass, Home, PlusSquare, Shield, User as UserIcon, Wallet } from 'lucide-react';
+import { BarChart3, Bell, Compass, Home, Moon, PlusSquare, Shield, Sun, User as UserIcon, Wallet } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import Logo from '../brand/Logo';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 
 const NAV_ITEMS = [
-  { icon: Home, label: 'Landing', path: '/' },
+  { icon: Home, label: 'Home', path: '/' },
   { icon: Compass, label: 'Feed', path: '/feed' },
   { icon: PlusSquare, label: 'Create', path: '/upload', special: true },
   { icon: BarChart3, label: 'Studio', path: '/studio' },
   { icon: Wallet, label: 'Wallet', path: '/wallet' },
   { icon: UserIcon, label: 'Profile', path: '/profile/me' },
-  { icon: Shield, label: 'Admin', path: '/admin' },
+  { icon: Shield, label: 'Admin', path: '/admin', adminOnly: true },
 ];
 
 export default function MainLayout() {
-  const { isAuthenticated, signOut } = useAuth();
+  const { isAuthenticated, user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Fetch real wallet balance
+  useEffect(() => {
+    if (!user) return;
+    const fetchWallet = async () => {
+      try {
+        const { data } = await supabase
+          .from('wallets')
+          .select('balance_cents')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setWalletBalance(data?.balance_cents ?? 0);
+      } catch (err) {
+        console.error('Error fetching wallet for sidebar:', err);
+      }
+    };
+
+    const checkAdmin = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        setIsAdmin(data?.role === 'admin' || data?.role === 'ADMIN');
+      } catch (err) {
+        console.error('Error checking admin role:', err);
+      }
+    };
+
+    fetchWallet();
+    checkAdmin();
+  }, [user]);
+
+  const formatBalance = (cents) => {
+    if (cents === null) return '—';
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+  };
+
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-950">
-      <aside className="hidden h-screen w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4 md:sticky md:top-0 md:flex">
-        <div className="mb-8 px-2">
-          <Logo size="md" hoverGlow={false} />
+    <div className="flex min-h-screen bg-[var(--gm-bg)]">
+      {/* ─── Desktop Sidebar ─── */}
+      <aside className="hidden h-screen w-[272px] shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-surface)] md:sticky md:top-0 md:flex">
+        {/* Logo */}
+        <div className="p-5 pb-2">
+          <Logo size="md" />
         </div>
 
-        <nav className="flex-1 space-y-2" aria-label="Product">
-          {NAV_ITEMS.map((item) => {
+        {/* Navigation */}
+        <nav className="flex-1 space-y-0.5 px-3 pt-4" aria-label="Main navigation">
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path || (item.path === '/feed' && location.pathname === '/explore');
+            const isActive = location.pathname === item.path
+              || (item.path === '/feed' && location.pathname === '/explore');
+
+            if (item.special) {
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className="mt-2 mb-2 flex items-center gap-3 rounded-xl gradient-brand px-4 py-3 text-sm font-bold text-white shadow-sm glow-brand transition-all hover:shadow-md active:scale-[0.97]"
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            }
+
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                className={`group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                  isActive
+                    ? 'bg-[var(--gm-brand-glow)] text-[var(--gm-brand-light)]'
+                    : 'text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)]'
                 }`}
               >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full gradient-brand" />
+                )}
                 <Icon className="h-5 w-5" aria-hidden="true" />
                 <span>{item.label}</span>
               </Link>
@@ -43,61 +115,116 @@ export default function MainLayout() {
           })}
         </nav>
 
-        <div className="mt-auto space-y-4 border-t border-slate-200 pt-4">
+        {/* Bottom Section */}
+        <div className="mt-auto space-y-3 border-t border-[var(--gm-border)] p-4">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)] transition-colors"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          </button>
+
           {isAuthenticated && (
             <>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="mb-1 text-sm text-slate-500">Available earnings</p>
-                <p className="text-2xl font-bold text-slate-950">$0.00</p>
-                <p className="mt-2 text-xs leading-5 text-slate-500">Withdrawals unlock after trust and clearing checks.</p>
+              {/* Real Wallet Balance */}
+              <div className="rounded-xl surface-brand p-4">
+                <p className="text-overline text-[var(--gm-brand-light)]">Available balance</p>
+                <p className="mt-1 text-h2 text-[var(--gm-text)]">
+                  {formatBalance(walletBalance)}
+                </p>
+                <p className="mt-2 text-caption text-[var(--gm-text-tertiary)]">
+                  Withdrawals unlock after trust checks
+                </p>
               </div>
+
+              {/* Sign Out */}
               <button
                 onClick={signOut}
-                className="w-full rounded-md px-3 py-2.5 text-left text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                className="w-full rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)] transition-colors"
               >
                 Sign out
               </button>
             </>
           )}
-          <p className="px-3 pt-2 text-xs font-semibold text-slate-400">Copyright 2026 GramMate</p>
+
+          <p className="px-4 pt-1 text-[10px] font-medium text-[var(--gm-text-tertiary)]">
+            © 2026 GramMate
+          </p>
         </div>
       </aside>
 
+      {/* ─── Main Content ─── */}
       <main className="flex min-h-screen w-full flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:hidden">
-          <Logo size="sm" tagline={false} hoverGlow={false} />
-          <div className="flex items-center gap-3">
-            <Link to="/upload" className="rounded-md p-2 text-slate-600 hover:bg-slate-100" aria-label="Upload video">
-              <PlusSquare size={22} />
+        {/* Mobile Header */}
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--gm-border)] glass px-4 md:hidden">
+          <Logo size="sm" tagline={false} />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              className="rounded-lg p-2 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <Link
+              to="/upload"
+              className="rounded-lg p-2 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] transition-colors"
+              aria-label="Upload video"
+            >
+              <PlusSquare size={20} />
             </Link>
-            <button className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100" aria-label="Notifications">
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-600" />
-              <Bell size={21} />
+            <button
+              className="relative rounded-lg p-2 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] transition-colors"
+              aria-label="Notifications"
+            >
+              <Bell size={20} />
             </button>
           </div>
         </header>
 
+        {/* Page Content */}
         <div className="flex-1">
           <Outlet />
         </div>
       </main>
 
-      <nav className="fixed bottom-0 z-50 flex h-16 w-full items-center justify-around border-t border-slate-200 bg-white px-2 md:hidden" aria-label="Mobile">
-        {NAV_ITEMS.filter((item) => item.path !== '/admin').map((item) => {
+      {/* ─── Mobile Bottom Nav ─── */}
+      <nav
+        className="fixed bottom-0 z-50 flex h-16 w-full items-center justify-around border-t border-[var(--gm-border)] glass px-2 md:hidden"
+        aria-label="Mobile navigation"
+      >
+        {filteredNavItems.filter(item => !item.adminOnly).map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path || (item.path === '/feed' && location.pathname === '/explore');
+          const isActive = location.pathname === item.path
+            || (item.path === '/feed' && location.pathname === '/explore');
 
           if (item.special) {
             return (
-              <Link key={item.path} to={item.path} className="flex h-10 w-12 items-center justify-center rounded-md bg-blue-600 text-white" aria-label={item.label}>
-                <Icon className="h-6 w-6" />
+              <Link
+                key={item.path}
+                to={item.path}
+                className="flex h-10 w-12 items-center justify-center rounded-xl gradient-brand text-white shadow-sm active:scale-95 transition-transform"
+                aria-label={item.label}
+              >
+                <Icon className="h-5 w-5" />
               </Link>
             );
           }
 
           return (
-            <Link key={item.path} to={item.path} className={`flex h-full w-14 flex-col items-center justify-center ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex h-full w-14 flex-col items-center justify-center transition-colors ${
+                isActive
+                  ? 'text-[var(--gm-brand-light)]'
+                  : 'text-[var(--gm-text-tertiary)]'
+              }`}
+            >
+              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 1.8} />
               <span className="mt-1 text-[10px] font-medium">{item.label}</span>
             </Link>
           );

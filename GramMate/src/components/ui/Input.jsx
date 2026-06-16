@@ -1,12 +1,44 @@
-export default function Input({ label, error, className = '', ...props }) {
+import { forwardRef } from 'react';
+
+const Input = forwardRef(function Input(
+  { label, icon: Icon, error, className = '', ...props },
+  ref
+) {
   return (
-    <label className={`block text-sm font-medium text-slate-700 ${className}`}>
-      <span className="mb-2 block">{label}</span>
-      <input
-        className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:cursor-not-allowed disabled:bg-slate-50"
-        {...props}
-      />
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    <label className="block">
+      {label && (
+        <span className="mb-2 block text-caption font-semibold text-[var(--gm-text-secondary)]">
+          {label}
+        </span>
+      )}
+      <span className="relative flex items-center">
+        {Icon && (
+          <Icon
+            className="absolute left-3.5 text-[var(--gm-text-tertiary)]"
+            size={18}
+            aria-hidden="true"
+          />
+        )}
+        <input
+          ref={ref}
+          className={`
+            w-full rounded-lg border border-[var(--gm-border)]
+            bg-[var(--gm-surface)] text-[var(--gm-text)]
+            placeholder:text-[var(--gm-text-tertiary)]
+            transition-all duration-200
+            focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none
+            ${Icon ? 'py-3 pl-11 pr-3.5' : 'px-3.5 py-3'}
+            ${error ? 'border-danger' : ''}
+            ${className}
+          `}
+          {...props}
+        />
+      </span>
+      {error && (
+        <p className="mt-1.5 text-caption text-danger">{error}</p>
+      )}
     </label>
   );
-}
+});
+
+export default Input;

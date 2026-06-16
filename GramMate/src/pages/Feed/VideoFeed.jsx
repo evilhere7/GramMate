@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Bookmark, Flag, Heart, MessageCircle, Search, Share2, UserPlus, UserCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -50,6 +51,7 @@ export default function VideoFeed() {
   const navigate = useNavigate();
   
   const [videoList, setVideoList] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
   const [activeVideo, setActiveVideo] = useState(0);
   const [activeTab, setActiveTab] = useState('Recommended');
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,15 +75,8 @@ export default function VideoFeed() {
   
 
 
-  // Toast notifications
-  const [toasts, setToasts] = useState([]);
-  
   const showToast = (message, type = 'info') => {
-    const id = crypto.randomUUID();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    toast[type]?.(message) || toast.info(message);
   };
 
   const containerRef = useRef(null);
@@ -89,6 +84,7 @@ export default function VideoFeed() {
   // Fetch Videos
   useEffect(() => {
     const fetchVideos = async () => {
+      setFeedLoading(true);
       try {
         const { data, error } = await supabase
           .from('videos')
@@ -148,11 +144,25 @@ export default function VideoFeed() {
         setVideoList(dbVideos);
       } catch (err) {
         console.error('Error fetching videos:', err.message);
+        showToast('Failed to load videos', 'error');
         setVideoList([]);
+      } finally {
+        setFeedLoading(false);
       }
     };
 
     fetchVideos();
+
+    const channel = supabase
+      .channel('published-videos-feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, () => {
+        fetchVideos();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Fetch user interactions if authenticated
@@ -167,10 +177,11 @@ export default function VideoFeed() {
     const fetchInteractions = async () => {
       try {
         // Fetch Likes
-        const { data: likesData } = await supabase
+        const { data: likesData, error: likesError } = await supabase
           .from('likes')
           .select('video_id')
           .eq('user_id', user.id);
+        if (likesError) throw likesError;
         if (likesData) {
           const map = {};
           likesData.forEach(item => map[item.video_id] = true);
@@ -178,10 +189,11 @@ export default function VideoFeed() {
         }
 
         // Fetch Saves
-        const { data: savesData } = await supabase
+        const { data: savesData, error: savesError } = await supabase
           .from('saved_videos')
           .select('video_id')
           .eq('user_id', user.id);
+        if (savesError) throw savesError;
         if (savesData) {
           const map = {};
           savesData.forEach(item => map[item.video_id] = true);
@@ -189,18 +201,20 @@ export default function VideoFeed() {
         }
 
         // Fetch Follows
-        const { data: followsData } = await supabase
+        const { data: followsData, error: followsError } = await supabase
           .from('follows')
           .select('following_id')
           .eq('follower_id', user.id);
+        if (followsError) throw followsError;
         if (followsData) {
           const map = {};
           followsData.forEach(item => map[item.following_id] = true);
           setFollowing(map);
         }
-      } catch (err) {
-        console.error('Error fetching user interactions:', err);
-      }
+    } catch (err) {
+      console.error('Error fetching user interactions:', err);
+      showToast('Could not load your interactions', 'error');
+    }
     };
 
     fetchInteractions();
@@ -520,22 +534,6 @@ export default function VideoFeed() {
 
   return (
     <div className="grid h-[calc(100vh-3.5rem)] bg-slate-950 md:h-screen lg:grid-cols-[1fr_360px]">
-      {/* Toast Notifications */}
-      <div className="fixed right-4 top-4 z-50 flex flex-col gap-2 pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`rounded-md px-4 py-3 text-sm font-bold shadow-lg transition-all transform duration-300 pointer-events-auto flex items-center gap-2 ${
-              toast.type === 'error' ? 'bg-red-600 text-white' :
-              toast.type === 'success' ? 'bg-green-600 text-white' :
-              'bg-blue-600 text-white'
-            }`}
-          >
-            {toast.message}
-          </div>
-        ))}
-      </div>
-
       <section ref={containerRef} className="relative h-full snap-y snap-mandatory overflow-y-scroll bg-black no-scrollbar" aria-label="Video feed">
         <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-white/10 bg-black/80 p-3 backdrop-blur">
           {feedTabs.map((tab) => (
@@ -549,7 +547,12 @@ export default function VideoFeed() {
           ))}
         </div>
 
-        {filteredVideos.length === 0 ? (
+        {feedLoading ? (
+          <div className="flex h-[80%] flex-col items-center justify-center gap-4 text-slate-300">
+            <span className="h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+            <p className="text-sm font-bold">Loading videos...</p>
+          </div>
+        ) : filteredVideos.length === 0 ? (
           <div className="flex h-[80%] flex-col items-center justify-center text-slate-400 p-8 text-center">
             <Search size={40} className="mb-4 text-slate-600" />
             <h3 className="text-lg font-bold text-white">No videos available yet</h3>

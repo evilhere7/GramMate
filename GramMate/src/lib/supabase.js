@@ -1,6 +1,7 @@
-import getSupabaseClient from './supabase/client';
+import supabaseClient, { getSupabaseClient } from './supabase/client';
 
 // Backwards-compatible export for modules importing `supabase`.
-const supabase = getSupabaseClient;
+const supabase = supabaseClient;
 export { supabase };
+export { getSupabaseClient };
 export default supabase;
