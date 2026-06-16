@@ -11,12 +11,18 @@ export const LogoIcon = ({ className = '', size = 40 }) => {
       className={className}
       aria-hidden="true"
     >
-      <rect x="10" y="10" width="80" height="80" rx="18" fill="#0F172A" />
+      <defs>
+        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#7C3AED" />
+          <stop offset="100%" stopColor="#06B6D4" />
+        </linearGradient>
+      </defs>
+      <rect x="10" y="10" width="80" height="80" rx="18" fill="url(#logoGradient)" />
       <path
         d="M64 34.5C59.8 30.8 54.8 29 49 29C37.4 29 28 38.4 28 50C28 61.6 37.4 71 49 71C58.9 71 67.2 64.1 69.4 54.8H51.5V44.6H81V50C81 68.2 67.1 82 49 82C31 82 17 68 17 50C17 32 31 18 49 18C58 18 65.6 21.1 71.8 26.8L64 34.5Z"
         fill="#FFFFFF"
       />
-      <path d="M47 42L62 50L47 58V42Z" fill="#2563EB" />
+      <path d="M47 42L62 50L47 58V42Z" fill="rgba(255,255,255,0.9)" />
     </svg>
   );
 };
@@ -48,15 +54,17 @@ export default function Logo({
     <div
       className={`flex ${
         layout === 'vertical' ? 'flex-col items-center text-center' : 'items-center text-left'
-      } ${currentSize.spacing} ${hoverGlow ? 'transition-transform hover:scale-[1.01]' : ''} ${className}`}
+      } ${currentSize.spacing} ${
+        hoverGlow ? 'transition-transform duration-300 hover:scale-[1.02]' : ''
+      } ${className}`}
     >
       <LogoIcon size={currentSize.icon} />
       <div className="flex flex-col">
-        <h1 className={`${currentSize.text} font-extrabold leading-none tracking-normal text-slate-950`}>
+        <h1 className={`${currentSize.text} font-extrabold leading-none tracking-tight text-[var(--gm-text)]`}>
           GramMate
         </h1>
         {tagline && (
-          <p className={`${currentSize.tag} mt-1.5 font-bold uppercase leading-none tracking-[0.18em] text-slate-500`}>
+          <p className={`${currentSize.tag} mt-1 font-bold uppercase leading-none tracking-[0.14em] text-[var(--gm-text-tertiary)]`}>
             Watch. Create. Earn.
           </p>
         )}
