@@ -2,40 +2,71 @@ import { useEffect, useState } from 'react';
 import { AtSign, BadgeCheck, Camera, Globe, Image as ImageIcon, Link as LinkIcon, Settings, ShieldCheck, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { videos } from '../../data/platformData';
 
 export default function CreatorProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
+  const [creatorVideos, setCreatorVideos] = useState([]);
+  const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndData = async () => {
       try {
-        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        setProfile(data || {
+        setLoading(true);
+        // Fetch profile
+        const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        const activeProfile = pData || {
           username: user.email.split('@')[0],
-          full_name: 'GramMate Creator',
+          full_name: user.user_metadata?.full_name || 'GramMate Creator',
           avatar_url: null,
           cover_url: null,
-          bio: 'Creator, educator, and early GramMate partner. Watch useful videos, support original work, and earn together.',
-          followers_count: 124000,
-          following_count: 85,
-          is_verified: true,
-          creator_badge: 'Founding Creator',
+          bio: 'Welcome to my GramMate profile. Watch my videos and let\'s earn together.',
+          followers_count: 0,
+          following_count: 0,
+          is_verified: false,
+          creator_badge: 'Creator',
           public_url: `grammate.com/@${user.email.split('@')[0]}`,
-        });
+        };
+        setProfile(activeProfile);
+
+        // Fetch videos
+        const { data: vData } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        setCreatorVideos(vData || []);
+
+        // Fetch wallet
+        const { data: wData } = await supabase
+          .from('wallets')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setWallet(wData);
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching creator profile data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) fetchProfile();
+    if (user) fetchProfileAndData();
   }, [user]);
 
   if (loading) return <div className="p-8 text-slate-500">Loading profile...</div>;
+
+  const totalLikes = creatorVideos.reduce((sum, v) => sum + (v.likes_count || 0), 0);
+  const totalEarnedCents = (wallet?.balance_cents || 0) + (wallet?.pending_cents || 0) + (wallet?.risk_hold_cents || 0);
+  const formatCurrency = (cents) => {
+    const dollars = cents / 100;
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(dollars);
+  };
+
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat('en', { notation: 'compact' }).format(num);
+  };
 
   return (
     <div className="pb-24 md:pb-8">
@@ -56,7 +87,9 @@ export default function CreatorProfilePage() {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-bold text-slate-950">{profile.full_name}</h1>
               {profile.is_verified && <BadgeCheck size={24} className="text-blue-600" aria-label="Verified" />}
-              <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{profile.creator_badge}</span>
+              {profile.creator_badge && (
+                <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{profile.creator_badge}</span>
+              )}
             </div>
             <p className="mt-1 font-semibold text-slate-500">@{profile.username}</p>
             <p className="mt-4 max-w-2xl leading-7 text-slate-700">{profile.bio}</p>
@@ -74,10 +107,10 @@ export default function CreatorProfilePage() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-4">
           {[
-            ['Followers', Intl.NumberFormat('en', { notation: 'compact' }).format(profile.followers_count)],
-            ['Following', profile.following_count],
-            ['Total likes', '452K'],
-            ['Earned', '$24.8K'],
+            ['Followers', formatNumber(profile.followers_count || 0)],
+            ['Following', formatNumber(profile.following_count || 0)],
+            ['Total likes', formatNumber(totalLikes)],
+            ['Earned', formatCurrency(totalEarnedCents)],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-slate-200 bg-white p-5">
               <p className="text-sm font-semibold text-slate-500">{label}</p>
@@ -91,19 +124,27 @@ export default function CreatorProfilePage() {
             <h2 className="text-xl font-bold text-slate-950">Videos</h2>
             <span className="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm font-bold text-green-700"><ShieldCheck size={16} /> Monetization active</span>
           </div>
-          <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-            {videos.map((video) => (
-              <article key={video.id} className="overflow-hidden rounded-lg border border-slate-200">
-                <div className="aspect-video bg-slate-950">
-                  <video src={video.url} className="h-full w-full object-cover" muted preload="metadata" />
-                </div>
-                <div className="p-4">
-                  <p className="font-bold text-slate-950">{video.title}</p>
-                  <p className="mt-2 text-sm text-slate-500">{video.likes} likes - {video.rewardRate}</p>
-                </div>
-              </article>
-            ))}
-          </div>
+          {creatorVideos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-slate-500 text-center">
+              <Camera size={36} className="mb-2 text-slate-400" />
+              <p className="text-lg font-bold text-slate-950">No videos uploaded yet</p>
+              <p className="text-sm mt-1">Upload your first video to start building your audience!</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+              {creatorVideos.map((video) => (
+                <article key={video.id} className="overflow-hidden rounded-lg border border-slate-200">
+                  <div className="aspect-video bg-slate-950">
+                    <video src={video.video_url} className="h-full w-full object-cover" muted preload="metadata" />
+                  </div>
+                  <div className="p-4">
+                    <p className="font-bold text-slate-950">{video.title}</p>
+                    <p className="mt-2 text-sm text-slate-500">{formatNumber(video.likes_count || 0)} likes - ${video.reward_rate_per_min || '0.01'}/min</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

@@ -2,17 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Bookmark, Flag, Heart, MessageCircle, Search, Share2, UserPlus, UserCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { videos } from '../../data/platformData';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 const feedTabs = ['Recommended', 'Trending', 'Following', 'Search'];
-
-// Check if string is a valid UUID (used to separate mock and DB entries)
-const isUUID = (str) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return regex.test(str);
-};
 
 // Parse count values (strings like '124K' or numbers) to integer values
 const parseCount = (val) => {
@@ -78,19 +71,7 @@ export default function VideoFeed() {
   const [newCommentText, setNewCommentText] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(false);
   
-  // Local mock comments list for mock videos
-  const [mockCommentsList, setMockCommentsList] = useState({
-    'city-food': [
-      { id: 'c1', username: 'alex_foodie', fullName: 'Alex Foodie', avatarUrl: null, content: 'That noodle stand looks amazing! Where exactly is it?', created_at: new Date(Date.now() - 3600000).toISOString() },
-      { id: 'c2', username: 'chef_gabriel', fullName: 'Chef Gabriel', avatarUrl: null, content: 'Dumplings look perfectly steamed. Great edit!', created_at: new Date(Date.now() - 1800000).toISOString() }
-    ],
-    'studio-workflow': [
-      { id: 'c3', username: 'vlog_king', fullName: 'Vlog King', avatarUrl: null, content: 'Super helpful workflow. Do you script word-for-word?', created_at: new Date(Date.now() - 7200000).toISOString() }
-    ],
-    'finance-basics': [
-      { id: 'c4', username: 'invest_smart', fullName: 'Invest Smart', avatarUrl: null, content: 'Taxes are indeed the hardest part of creator life.', created_at: new Date(Date.now() - 500000).toISOString() }
-    ]
-  });
+
 
   // Toast notifications
   const [toasts, setToasts] = useState([]);
@@ -122,6 +103,8 @@ export default function VideoFeed() {
           `)
           .eq('is_active', true)
           .eq('visibility', 'public')
+          .eq('processing_status', 'ready')
+          .eq('moderation_status', 'approved')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -139,21 +122,10 @@ export default function VideoFeed() {
           shares: v.shares_count || 0,
           saves: v.saves_count || 0,
           rewardRate: `$${v.reward_rate_per_min || '0.01'}/min`,
-          duration: '0:30',
+          duration: v.duration_seconds ? `${Math.floor(v.duration_seconds / 60)}:${(v.duration_seconds % 60).toString().padStart(2, '0')}` : '0:30',
           verified: v.profiles?.is_verified || false,
           user_id: v.user_id
         }));
-
-        // Combine DB and mock, keeping DB items first, ensuring uniqueness
-        const combined = [...dbVideos, ...videos];
-        const unique = [];
-        const seen = new Set();
-        for (const item of combined) {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            unique.push(item);
-          }
-        }
 
         // Initialize counts
         const initialLikes = {};
@@ -161,11 +133,11 @@ export default function VideoFeed() {
         const initialComments = {};
         const initialShares = {};
 
-        unique.forEach(vid => {
-          initialLikes[vid.id] = parseCount(vid.likes);
-          initialSaves[vid.id] = parseCount(vid.saves);
-          initialComments[vid.id] = parseCount(vid.comments);
-          initialShares[vid.id] = parseCount(vid.shares);
+        dbVideos.forEach(vid => {
+          initialLikes[vid.id] = vid.likes;
+          initialSaves[vid.id] = vid.saves;
+          initialComments[vid.id] = vid.comments;
+          initialShares[vid.id] = vid.shares;
         });
 
         setLikesCounts(initialLikes);
@@ -173,25 +145,10 @@ export default function VideoFeed() {
         setCommentsCounts(initialComments);
         setSharesCounts(initialShares);
         
-        setVideoList(unique);
+        setVideoList(dbVideos);
       } catch (err) {
         console.error('Error fetching videos:', err.message);
-        // Fallback to mock data
-        setVideoList(videos);
-        const initialLikes = {};
-        const initialSaves = {};
-        const initialComments = {};
-        const initialShares = {};
-        videos.forEach(vid => {
-          initialLikes[vid.id] = parseCount(vid.likes);
-          initialSaves[vid.id] = parseCount(vid.saves);
-          initialComments[vid.id] = parseCount(vid.comments);
-          initialShares[vid.id] = parseCount(vid.shares);
-        });
-        setLikesCounts(initialLikes);
-        setSavesCounts(initialSaves);
-        setCommentsCounts(initialComments);
-        setSharesCounts(initialShares);
+        setVideoList([]);
       }
     };
 
@@ -290,7 +247,6 @@ export default function VideoFeed() {
       return;
     }
 
-    const isMock = !isUUID(video.id);
     const isCurrentlyLiked = !!liked[video.id];
     const currentCount = likesCounts[video.id] ?? 0;
 
@@ -301,28 +257,26 @@ export default function VideoFeed() {
       [video.id]: isCurrentlyLiked ? Math.max(0, currentCount - 1) : currentCount + 1
     }));
 
-    if (!isMock) {
-      try {
-        if (isCurrentlyLiked) {
-          const { error } = await supabase
-            .from('likes')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('video_id', video.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('likes')
-            .insert({ user_id: user.id, video_id: video.id });
-          if (error) throw error;
-        }
-      } catch (err) {
-        console.error('Like error:', err);
-        // Revert
-        setLiked(prev => ({ ...prev, [video.id]: isCurrentlyLiked }));
-        setLikesCounts(prev => ({ ...prev, [video.id]: currentCount }));
-        showToast('Failed to update like status', 'error');
+    try {
+      if (isCurrentlyLiked) {
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', video.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('likes')
+          .insert({ user_id: user.id, video_id: video.id });
+        if (error) throw error;
       }
+    } catch (err) {
+      console.error('Like error:', err);
+      // Revert
+      setLiked(prev => ({ ...prev, [video.id]: isCurrentlyLiked }));
+      setLikesCounts(prev => ({ ...prev, [video.id]: currentCount }));
+      showToast('Failed to update like status', 'error');
     }
   };
 
@@ -333,7 +287,6 @@ export default function VideoFeed() {
       return;
     }
 
-    const isMock = !isUUID(video.id);
     const isCurrentlySaved = !!saved[video.id];
     const currentCount = savesCounts[video.id] ?? 0;
 
@@ -345,28 +298,26 @@ export default function VideoFeed() {
     }));
     showToast(isCurrentlySaved ? 'Removed from bookmarks' : 'Added to bookmarks', 'success');
 
-    if (!isMock) {
-      try {
-        if (isCurrentlySaved) {
-          const { error } = await supabase
-            .from('saved_videos')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('video_id', video.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('saved_videos')
-            .insert({ user_id: user.id, video_id: video.id });
-          if (error) throw error;
-        }
-      } catch (err) {
-        console.error('Save error:', err);
-        // Revert
-        setSaved(prev => ({ ...prev, [video.id]: isCurrentlySaved }));
-        setSavesCounts(prev => ({ ...prev, [video.id]: currentCount }));
-        showToast('Failed to update bookmark status', 'error');
+    try {
+      if (isCurrentlySaved) {
+        const { error } = await supabase
+          .from('saved_videos')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', video.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('saved_videos')
+          .insert({ user_id: user.id, video_id: video.id });
+        if (error) throw error;
       }
+    } catch (err) {
+      console.error('Save error:', err);
+      // Revert
+      setSaved(prev => ({ ...prev, [video.id]: isCurrentlySaved }));
+      setSavesCounts(prev => ({ ...prev, [video.id]: currentCount }));
+      showToast('Failed to update bookmark status', 'error');
     }
   };
 
@@ -377,8 +328,7 @@ export default function VideoFeed() {
       return;
     }
 
-    const isMock = !isUUID(video.id);
-    const targetKey = isMock ? video.handle : video.user_id;
+    const targetKey = video.user_id;
     
     if (!targetKey) {
       showToast('Creator details not available', 'error');
@@ -391,27 +341,25 @@ export default function VideoFeed() {
     setFollowing(prev => ({ ...prev, [targetKey]: !isCurrentlyFollowing }));
     showToast(isCurrentlyFollowing ? `Unfollowed @${video.handle}` : `Followed @${video.handle}`, 'success');
 
-    if (!isMock) {
-      try {
-        if (isCurrentlyFollowing) {
-          const { error } = await supabase
-            .from('follows')
-            .delete()
-            .eq('follower_id', user.id)
-            .eq('following_id', targetKey);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('follows')
-            .insert({ follower_id: user.id, following_id: targetKey });
-          if (error) throw error;
-        }
-      } catch (err) {
-        console.error('Follow error:', err);
-        // Revert
-        setFollowing(prev => ({ ...prev, [targetKey]: isCurrentlyFollowing }));
-        showToast('Failed to update follow status', 'error');
+    try {
+      if (isCurrentlyFollowing) {
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', targetKey);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('follows')
+          .insert({ follower_id: user.id, following_id: targetKey });
+        if (error) throw error;
       }
+    } catch (err) {
+      console.error('Follow error:', err);
+      // Revert
+      setFollowing(prev => ({ ...prev, [targetKey]: isCurrentlyFollowing }));
+      showToast('Failed to update follow status', 'error');
     }
   };
 
@@ -436,11 +384,6 @@ export default function VideoFeed() {
   useEffect(() => {
     if (commentsVideoId) {
       const fetchComments = async () => {
-        if (!isUUID(commentsVideoId)) {
-          setCommentsList(mockCommentsList[commentsVideoId] || []);
-          return;
-        }
-
         setCommentsLoading(true);
         try {
           const { data, error } = await supabase
@@ -480,7 +423,7 @@ export default function VideoFeed() {
 
       fetchComments();
     }
-  }, [commentsVideoId, mockCommentsList]);
+  }, [commentsVideoId]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -493,7 +436,6 @@ export default function VideoFeed() {
     }
 
     const videoId = commentsVideoId;
-    const isMock = !isUUID(videoId);
     const commentContent = newCommentText.trim();
     setNewCommentText('');
 
@@ -514,53 +456,46 @@ export default function VideoFeed() {
       [videoId]: (prev[videoId] ?? 0) + 1
     }));
 
-    if (isMock) {
-      setMockCommentsList(prev => ({
-        ...prev,
-        [videoId]: [...(prev[videoId] || []), optimisticComment]
-      }));
-    } else {
-      try {
-        const { data, error } = await supabase
-          .from('comments')
-          .insert({
-            user_id: user.id,
-            video_id: videoId,
-            content: commentContent,
-            moderation_status: 'approved'
-          })
-          .select(`
-            id,
-            created_at,
-            profiles:user_id (
-              username,
-              full_name,
-              avatar_url
-            )
-          `)
-          .single();
-
-        if (error) throw error;
-
-        setCommentsList(prev => prev.map(c => c.id === tempCommentId ? {
-          id: data.id,
-          username: data.profiles?.username || optimisticComment.username,
-          fullName: data.profiles?.full_name || optimisticComment.fullName,
-          avatarUrl: data.profiles?.avatar_url || optimisticComment.avatarUrl,
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          user_id: user.id,
+          video_id: videoId,
           content: commentContent,
-          created_at: data.created_at
-        } : c));
-      } catch (err) {
-        console.error('Comment submit error:', err);
-        // Revert
-        setCommentsList(prev => prev.filter(c => c.id !== tempCommentId));
-        setCommentsCounts(prev => ({
-          ...prev,
-          [videoId]: Math.max(0, (prev[videoId] ?? 0) - 1)
-        }));
-        setNewCommentText(commentContent);
-        showToast('Failed to post comment', 'error');
-      }
+          moderation_status: 'approved'
+        })
+        .select(`
+          id,
+          created_at,
+          profiles:user_id (
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      setCommentsList(prev => prev.map(c => c.id === tempCommentId ? {
+        id: data.id,
+        username: data.profiles?.username || optimisticComment.username,
+        fullName: data.profiles?.full_name || optimisticComment.fullName,
+        avatarUrl: data.profiles?.avatar_url || optimisticComment.avatarUrl,
+        content: commentContent,
+        created_at: data.created_at
+      } : c));
+    } catch (err) {
+      console.error('Comment submit error:', err);
+      // Revert
+      setCommentsList(prev => prev.filter(c => c.id !== tempCommentId));
+      setCommentsCounts(prev => ({
+        ...prev,
+        [videoId]: Math.max(0, (prev[videoId] ?? 0) - 1)
+      }));
+      setNewCommentText(commentContent);
+      showToast('Failed to post comment', 'error');
     }
   };
 
@@ -568,7 +503,7 @@ export default function VideoFeed() {
   const filteredVideos = videoList.filter(video => {
     if (activeTab === 'Trending') return parseCount(likesCounts[video.id]) > 50000;
     if (activeTab === 'Following') {
-      const creatorKey = !isUUID(video.id) ? video.handle : video.user_id;
+      const creatorKey = video.user_id;
       return !!following[creatorKey];
     }
     if (activeTab === 'Search') {
@@ -617,13 +552,13 @@ export default function VideoFeed() {
         {filteredVideos.length === 0 ? (
           <div className="flex h-[80%] flex-col items-center justify-center text-slate-400 p-8 text-center">
             <Search size={40} className="mb-4 text-slate-600" />
-            <h3 className="text-lg font-bold text-white">No videos found</h3>
-            <p className="mt-2 text-sm max-w-xs">There are no videos matching the current tab or query. Try another tab or check back later!</p>
+            <h3 className="text-lg font-bold text-white">No videos available yet</h3>
+            <p className="mt-2 text-sm max-w-xs">Be the first to upload a video or adjust your search filter.</p>
           </div>
         ) : (
           filteredVideos.map((video, index) => {
             const isActive = index === activeVideo;
-            const creatorKey = !isUUID(video.id) ? video.handle : video.user_id;
+            const creatorKey = video.user_id;
             const isFollowed = !!following[creatorKey];
 
             return (

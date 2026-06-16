@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Download, ShieldCheck, Star } from 'lucide-react';
 import Logo from '../../components/brand/Logo';
-import { faqs, landingSections, platformFeatures, securityPillars, trustFeatures, videos } from '../../data/platformData';
+import { faqs, landingSections, platformFeatures, securityPillars, trustFeatures } from '../../data/platformData';
+import { supabase } from '../../lib/supabase';
+import { useState, useEffect } from 'react';
 
 const metricCards = [
   { label: 'Creator revenue share', value: '80%' },
@@ -10,6 +12,31 @@ const metricCards = [
 ];
 
 export default function LandingPage() {
+  const [previewVideo, setPreviewVideo] = useState(null);
+
+  useEffect(() => {
+    const fetchPreviewVideo = async () => {
+      try {
+        const { data } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .eq('visibility', 'public')
+          .eq('processing_status', 'ready')
+          .eq('moderation_status', 'approved')
+          .order('likes_count', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        setPreviewVideo(data);
+      } catch (err) {
+        console.error('Error fetching preview video:', err);
+      }
+    };
+
+    fetchPreviewVideo();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white text-slate-950">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -68,24 +95,38 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="relative min-h-[520px] overflow-hidden rounded-lg border border-slate-200 bg-slate-950 shadow-sm">
-              <video
-                className="h-full min-h-[520px] w-full object-cover opacity-80"
-                src={videos[0].url}
-                autoPlay
-                muted
-                loop
-                playsInline
-                aria-label="GramMate video preview"
-              />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-6 text-white">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold backdrop-blur">
-                  <Star size={16} aria-hidden="true" />
-                  Eligible reward: $0.02/min
+            <div className="relative min-h-[520px] overflow-hidden rounded-lg border border-slate-200 bg-slate-950 shadow-sm flex flex-col justify-center">
+              {previewVideo ? (
+                <>
+                  <video
+                    className="h-full min-h-[520px] w-full object-cover opacity-80"
+                    src={previewVideo.video_url}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    aria-label="GramMate video preview"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-6 text-white">
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold backdrop-blur">
+                      <Star size={16} aria-hidden="true" />
+                      Eligible reward: ${previewVideo.reward_rate_per_min || '0.02'}/min
+                    </div>
+                    <h2 className="text-2xl font-bold">{previewVideo.title}</h2>
+                    {previewVideo.description && (
+                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-200">{previewVideo.description}</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-full min-h-[520px] flex-col items-center justify-center p-6 text-slate-400 text-center bg-gradient-to-b from-slate-900 to-slate-950">
+                  <Star size={48} className="text-amber-500 mb-4 animate-pulse" />
+                  <h3 className="text-2xl font-bold text-white">Join GramMate Today</h3>
+                  <p className="mt-3 max-w-xs text-sm leading-6 text-slate-300">
+                    A decentralized creator economy where attention has value. Publish videos, build your audience, and earn rewards.
+                  </p>
                 </div>
-                <h2 className="text-2xl font-bold">{videos[0].title}</h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-slate-200">{videos[0].description}</p>
-              </div>
+              )}
             </div>
           </div>
         </section>
