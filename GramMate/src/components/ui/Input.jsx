@@ -26,7 +26,7 @@ const Input = forwardRef(function Input(
             bg-[var(--gm-surface)] text-[var(--gm-text)]
             placeholder:text-[var(--gm-text-tertiary)]
             transition-all duration-200
-            focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none
+            focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none
             ${Icon ? 'py-3 pl-11 pr-3.5' : 'px-3.5 py-3'}
             ${error ? 'border-danger' : ''}
             ${className}

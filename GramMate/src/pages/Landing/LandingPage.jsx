@@ -96,7 +96,7 @@ export default function LandingPage() {
             <Link to="/login" className="hidden rounded-lg px-3.5 py-2 text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] hover:text-[var(--gm-text)] transition-colors sm:inline-flex">
               Log in
             </Link>
-            <Link to="/signup" className="inline-flex items-center gap-2 rounded-lg gradient-brand px-4 py-2 text-sm font-bold text-white shadow-sm glow-brand transition-all hover:shadow-md active:scale-[0.97]">
+            <Link to="/signup" className="inline-flex items-center gap-2 rounded-lg gradient-brand px-4 py-2 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all active:scale-[0.97]">
               Get started
               <ArrowRight size={16} aria-hidden="true" />
             </Link>
@@ -107,11 +107,7 @@ export default function LandingPage() {
       <main>
         {/* ─── Hero ─── */}
         <section className="relative overflow-hidden gradient-hero border-b border-[var(--gm-border)]">
-          {/* Ambient glow blobs */}
-          <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[var(--gm-brand)] opacity-[0.07] blur-[120px]" />
-          <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[var(--gm-accent)] opacity-[0.07] blur-[120px]" />
-
-          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:py-24 lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:py-24 lg:px-8">
             <div className="flex flex-col justify-center">
               <AnimateIn>
                 <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full glass px-4 py-2 text-sm font-semibold text-[var(--gm-text-secondary)]">
@@ -122,7 +118,7 @@ export default function LandingPage() {
 
               <AnimateIn delay={100}>
                 <h1 className="text-display max-w-3xl">
-                  <span className="gradient-text">Watch. Create.</span>{' '}
+                  <span className="text-[var(--gm-brand-light)]">Watch. Create.</span>{' '}
                   <span className="text-[var(--gm-text)]">Earn.</span>
                 </h1>
               </AnimateIn>
@@ -135,7 +131,7 @@ export default function LandingPage() {
 
               <AnimateIn delay={300}>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Link to="/feed" className="inline-flex items-center justify-center gap-2 rounded-xl gradient-brand px-6 py-3.5 text-base font-bold text-white shadow-sm glow-brand transition-all hover:shadow-md active:scale-[0.97]">
+                  <Link to="/feed" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] px-6 py-3.5 text-base font-bold text-white shadow-sm hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]">
                     <Play size={18} fill="white" aria-hidden="true" />
                     Watch the feed
                   </Link>
@@ -149,7 +145,7 @@ export default function LandingPage() {
                 <div className="mt-10 grid max-w-2xl grid-cols-3 gap-3">
                   {metricCards.map((metric) => (
                     <div key={metric.label} className="rounded-xl surface p-4 card-hover">
-                      <p className="text-h2 gradient-text">{metric.value}</p>
+                      <p className="text-h2 text-[var(--gm-brand-light)]">{metric.value}</p>
                       <p className="mt-1 text-caption text-[var(--gm-text-secondary)]">{metric.label}</p>
                     </div>
                   ))}
@@ -184,7 +180,7 @@ export default function LandingPage() {
                   </>
                 ) : (
                   <div className="flex h-full min-h-[520px] flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-[var(--gm-surface)] to-[var(--gm-bg)]">
-                    <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl surface-brand animate-float">
+                    <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl surface-brand">
                       <Play size={32} className="text-[var(--gm-brand-light)]" fill="currentColor" />
                     </div>
                     <h3 className="text-h2 text-[var(--gm-text)]">Join GramMate Today</h3>
@@ -212,7 +208,7 @@ export default function LandingPage() {
               return (
                 <AnimateIn key={item.title} delay={i * 100}>
                   <article className="surface rounded-2xl p-6 card-hover h-full">
-                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl surface-brand">
+                    <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
                       <Icon size={22} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
                     </div>
                     <h3 className="text-h2">{item.title}</h3>
@@ -266,7 +262,7 @@ export default function LandingPage() {
                   return (
                     <AnimateIn key={pillar.title} delay={i * 80}>
                       <article className="surface rounded-2xl p-5 card-hover h-full">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg surface-brand">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
                           <Icon size={20} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
                         </div>
                         <h3 className="mt-4 text-h3">{pillar.title}</h3>
@@ -319,8 +315,8 @@ export default function LandingPage() {
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <AnimateIn>
             <div className="relative overflow-hidden rounded-2xl gradient-brand p-8 text-white md:flex md:items-center md:justify-between">
-              {/* Ambient blob */}
-              <div className="absolute -top-20 -right-20 h-60 w-60 rounded-full bg-white opacity-[0.08] blur-[80px]" />
+              {/* Subtle texture overlay */}
+              <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(circle at 80% 20%, #fff 0%, transparent 50%)'}} />
               <div className="relative">
                 <h2 className="text-h1 text-white">Take GramMate with you.</h2>
                 <p className="mt-3 max-w-2xl text-white/80">Mobile-first watching, creator uploads, wallet alerts, and payout approvals in one app-ready experience.</p>

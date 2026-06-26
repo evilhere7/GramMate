@@ -18,17 +18,19 @@ export default function AdminSettings() {
         <Card title="Tools" description="Admin utilities, bulk actions, and audit controls." icon={Tool} />
       </div>
 
-      <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-[1fr_1fr] gap-4 border-b border-slate-200 p-5 text-sm font-semibold text-slate-500">
+      <div className="mt-8 overflow-hidden rounded-xl surface">
+        <div className="grid grid-cols-[1fr_1fr] gap-4 border-b border-[var(--gm-border)] px-5 py-3 text-caption font-semibold text-[var(--gm-text-secondary)]">
           <span>Setting</span>
           <span>Value</span>
         </div>
+        <div className="divide-y divide-[var(--gm-border)]">
         {settings.map((setting) => (
-          <div key={setting.label} className="grid grid-cols-[1fr_1fr] gap-4 p-5 text-sm text-slate-700">
-            <span>{setting.label}</span>
+          <div key={setting.label} className="grid grid-cols-[1fr_1fr] gap-4 px-5 py-3.5 text-sm text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] transition-colors">
+            <span className="font-semibold text-[var(--gm-text)]">{setting.label}</span>
             <span>{setting.value}</span>
           </div>
         ))}
+        </div>
       </div>
     </div>
   );

@@ -11,33 +11,33 @@ const stats = [
 
 export default function HomePage() {
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 space-y-8">
       <SectionHeader title="Overview" subtitle="Your creator economy operating system." />
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((item) => (
-          <Card key={item.label} className="border-slate-200 bg-slate-50">
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
-            <p className="mt-4 text-3xl font-semibold text-slate-950">{item.value}</p>
-          </Card>
+          <article key={item.label} className="surface rounded-xl p-5 card-hover">
+            <p className="text-overline text-[var(--gm-text-tertiary)]">{item.label}</p>
+            <p className="mt-3 text-h1 text-[var(--gm-text)]">{item.value}</p>
+          </article>
         ))}
       </div>
       <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
         <Card title="Recent activity" description="A quick snapshot of platform engagement." className="overflow-hidden">
-          <div className="space-y-4">
+          <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-3 text-sm text-slate-500">
-                  <span>Campaign</span>
-                  <span>2 hours ago</span>
+              <div key={index} className="rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface-elevated)] p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-caption font-semibold text-[var(--gm-brand-light)]">Campaign</span>
+                  <span className="text-caption text-[var(--gm-text-tertiary)]">2 hours ago</span>
                 </div>
-                <p className="text-sm text-slate-700">Creator payout was processed and the campaign reach increased to 120K.</p>
+                <p className="text-body text-[var(--gm-text-secondary)]">Creator payout was processed and the campaign reach increased to 120K.</p>
               </div>
             ))}
           </div>
         </Card>
 
         <Card title="Live metrics" description="Current platform pulse and system health.">
-          <div className="space-y-4">
+          <div className="space-y-3">
             <SkeletonBlock className="h-20 w-full" />
             <SkeletonBlock className="h-20 w-full" />
             <SkeletonBlock className="h-20 w-full" />

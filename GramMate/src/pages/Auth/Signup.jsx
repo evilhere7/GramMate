@@ -104,7 +104,7 @@ export default function Signup() {
                     onClick={() => setRole(item)}
                     className={`rounded-lg px-3 py-2.5 text-sm font-bold capitalize transition-all ${
                       role === item
-                        ? 'gradient-brand text-white shadow-sm'
+                        ? 'bg-[var(--gm-brand)] text-white shadow-sm'
                         : 'text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)]'
                     }`}
                   >
@@ -117,7 +117,7 @@ export default function Signup() {
                 <span className="mb-2 block text-caption font-semibold text-[var(--gm-text-secondary)]">Username</span>
                 <span className="relative flex items-center">
                   <User className="absolute left-3.5 text-[var(--gm-text-tertiary)]" size={18} />
-                  <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none" placeholder="yourhandle" />
+                  <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none" placeholder="yourhandle" />
                 </span>
               </label>
 
@@ -125,7 +125,7 @@ export default function Signup() {
                 <span className="mb-2 block text-caption font-semibold text-[var(--gm-text-secondary)]">Email</span>
                 <span className="relative flex items-center">
                   <Mail className="absolute left-3.5 text-[var(--gm-text-tertiary)]" size={18} />
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none" placeholder="you@example.com" />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none" placeholder="you@example.com" />
                 </span>
               </label>
 
@@ -134,7 +134,7 @@ export default function Signup() {
                   <span className="mb-2 block text-caption font-semibold text-[var(--gm-text-secondary)]">Password</span>
                   <span className="relative flex items-center">
                     <Lock className="absolute left-3.5 text-[var(--gm-text-tertiary)]" size={18} />
-                    <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none" placeholder="At least 8 characters" />
+                    <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none" placeholder="At least 8 characters" />
                   </span>
                 </label>
                 <PasswordStrength password={password} />
@@ -143,7 +143,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={authProcessing}
-                className="flex w-full items-center justify-center gap-2 rounded-xl gradient-brand py-3.5 font-bold text-white shadow-sm glow-brand transition-all hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] py-3.5 font-bold text-white shadow-sm hover:bg-[var(--gm-brand-light)] transition-all disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97]"
               >
                 {authProcessing ? (
                   <>
@@ -183,9 +183,6 @@ export default function Signup() {
 
         {/* Right Panel */}
         <aside className="relative hidden overflow-hidden gradient-hero p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[var(--gm-accent)] opacity-[0.12] blur-[100px]" />
-          <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-[var(--gm-brand)] opacity-[0.1] blur-[100px]" />
-
           <div className="relative rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
             <BadgeCheck size={28} className="text-[var(--gm-accent-light)]" />
             <h2 className="mt-5 text-display text-white leading-tight">Verification-ready from day one.</h2>

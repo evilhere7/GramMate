@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Headphones, Search, ShieldAlert, UserX, Users, FileVideo, Flag, LockKeyhole } from 'lucide-react';
-import Logo from '../../components/brand/Logo';
 import { supabase } from '../../lib/supabase';
 
 const adminAreas = ['User management', 'Video management', 'Reports', 'Earnings', 'Withdrawals', 'Fraud', 'Support'];
@@ -20,27 +19,23 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
-      // 1. Total users
       const { count: usersCount, error: usersErr } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
       if (usersErr) throw usersErr;
 
-      // 2. Videos reviewed (moderation_status != 'pending')
       const { count: reviewedCount, error: videosErr } = await supabase
         .from('videos')
         .select('*', { count: 'exact', head: true })
         .neq('moderation_status', 'pending');
       if (videosErr) throw videosErr;
 
-      // 3. Open reports (status in ['open', 'reviewing'])
       const { count: reportsCount, error: reportsErr } = await supabase
         .from('reports')
         .select('*', { count: 'exact', head: true })
         .in('status', ['open', 'reviewing']);
       if (reportsErr) throw reportsErr;
 
-      // 4. Risk holds
       const { data: walletsData, error: walletsErr } = await supabase
         .from('wallets')
         .select('risk_hold_cents');
@@ -54,7 +49,6 @@ export default function AdminDashboard() {
         riskHolds: totalRiskHoldsCents / 100,
       });
 
-      // 5. Fetch reports queue
       const { data: queueData, error: queueErr } = await supabase
         .from('reports')
         .select(`
@@ -108,13 +102,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  };
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat('en').format(num);
-  };
+  const formatNumber = (num) =>
+    new Intl.NumberFormat('en').format(num);
 
   const adminStats = [
     { label: 'Total users', value: formatNumber(stats.totalUsers), icon: Users },
@@ -136,89 +128,101 @@ export default function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8">
-      <header className="mb-8 flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end">
+      {/* Header */}
+      <header className="mb-8 flex flex-col justify-between gap-4 border-b border-[var(--gm-border)] pb-6 md:flex-row md:items-end">
         <div>
-          <Logo size="sm" hoverGlow={false} />
-          <p className="mt-6 text-sm font-bold uppercase tracking-[0.16em] text-blue-600">Admin Center</p>
-          <h1 className="mt-2 text-4xl font-bold text-slate-950">Platform operations and trust</h1>
+          <p className="text-overline text-[var(--gm-brand-light)]">Admin Center</p>
+          <h1 className="mt-2 text-h1 text-[var(--gm-text)]">Platform operations</h1>
+          <p className="mt-1 text-body text-[var(--gm-text-secondary)]">Trust, moderation, and platform health.</p>
         </div>
         <label className="relative block md:w-80">
-          <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-          <input 
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--gm-text-tertiary)]" size={16} />
+          <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-slate-300 py-3 pl-10 pr-3" 
-            placeholder="Search reports by reason or user" 
+            className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-2.5 pl-10 pr-3 text-sm text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] focus:border-[var(--gm-brand)] focus:outline-none transition-colors"
+            placeholder="Search reports…"
           />
         </label>
       </header>
 
       {loading && stats.totalUsers === 0 ? (
-        <div className="p-8 text-slate-500">Loading Admin Dashboard...</div>
+        <div className="p-8 text-[var(--gm-text-secondary)] text-sm">Loading dashboard…</div>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-4">
+          {/* Stat cards */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {adminStats.map((stat) => {
               const Icon = stat.icon;
               return (
-                <article key={stat.label} className="rounded-lg border border-slate-200 bg-white p-5">
+                <article key={stat.label} className="surface rounded-xl p-5 card-hover">
                   <div className="flex items-center justify-between">
-                    <Icon size={21} className="text-blue-600" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
+                      <Icon size={18} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
+                    </div>
                   </div>
-                  <p className="mt-5 text-sm text-slate-500">{stat.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">{stat.value}</p>
+                  <p className="mt-4 text-caption text-[var(--gm-text-secondary)]">{stat.label}</p>
+                  <p className="mt-1 text-h2 text-[var(--gm-text)]">{stat.value}</p>
                 </article>
               );
             })}
           </section>
 
+          {/* Main grid */}
           <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <aside className="rounded-lg border border-slate-200 bg-white p-5">
-              <h2 className="text-xl font-bold text-slate-950">Admin modules</h2>
-              <div className="mt-4 grid gap-2">
+            {/* Admin modules sidebar */}
+            <aside className="surface rounded-xl p-5">
+              <h2 className="text-h3 text-[var(--gm-text)]">Admin modules</h2>
+              <nav className="mt-4 space-y-0.5">
                 {adminAreas.map((area) => (
-                  <button key={area} className="rounded-md px-3 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50">{area}</button>
+                  <button
+                    key={area}
+                    className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)] transition-colors"
+                  >
+                    {area}
+                  </button>
                 ))}
-              </div>
+              </nav>
             </aside>
 
-            <section className="rounded-lg border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-200 p-5">
-                <h2 className="text-xl font-bold text-slate-950">Fraud and moderation queue</h2>
-                <ShieldAlert size={22} className="text-amber-600" />
+            {/* Moderation queue */}
+            <section className="surface rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[var(--gm-border)] px-5 py-4">
+                <h2 className="text-h3 text-[var(--gm-text)]">Moderation queue</h2>
+                <ShieldAlert size={18} className="text-warning" />
               </div>
               {filteredQueue.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 text-slate-500">
-                  <ShieldAlert size={36} className="mb-2 text-slate-400" />
-                  <p className="text-lg font-bold text-slate-950">No pending moderation cases</p>
-                  <p className="text-sm mt-1">There are no open reports requiring review.</p>
+                <div className="flex flex-col items-center justify-center p-12 text-center">
+                  <ShieldAlert size={32} className="mb-3 text-[var(--gm-text-tertiary)]" />
+                  <p className="text-h3 text-[var(--gm-text)]">No pending cases</p>
+                  <p className="mt-1 text-body text-[var(--gm-text-secondary)]">There are no open reports requiring review.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-200">
+                <div className="divide-y divide-[var(--gm-border)]">
                   {filteredQueue.map((item) => (
-                    <div key={item.id} className="grid gap-4 p-5 md:grid-cols-[1fr_auto_auto] md:items-center">
+                    <div key={item.id} className="grid gap-4 px-5 py-4 md:grid-cols-[1fr_auto_auto] md:items-center">
                       <div>
-                        <p className="font-bold text-slate-950">
-                          {item.video ? `Report on video: "${item.video.title}"` : 'Report on account'}
+                        <p className="text-sm font-semibold text-[var(--gm-text)]">
+                          {item.video ? `Video: "${item.video.title}"` : 'Account report'}
                         </p>
-                        <p className="mt-1 text-sm text-slate-500">Reason: {item.reason}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          By: @{item.reporter?.username || 'unknown'} - Target: @{item.reported_user?.username || 'unknown'}
+                        <p className="mt-1 text-caption text-[var(--gm-text-secondary)]">Reason: {item.reason}</p>
+                        <p className="mt-0.5 text-[11px] text-[var(--gm-text-tertiary)]">
+                          By @{item.reporter?.username || 'unknown'} → @{item.reported_user?.username || 'unknown'}
                         </p>
                       </div>
-                      <span className="rounded-md bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700 capitalize">
+                      <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning capitalize border border-warning/20">
                         {item.status}
                       </span>
                       <div className="flex gap-2">
-                        <button 
+                        <button
                           onClick={() => handleResolveReport(item.id, 'Dismissed')}
-                          className="rounded-md bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
+                          className="rounded-lg border border-[var(--gm-border)] px-3 py-1.5 text-xs font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)] transition-colors"
                         >
                           Dismiss
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleResolveReport(item.id, 'Resolved / Enforced')}
-                          className="rounded-md bg-slate-950 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                          className="rounded-lg bg-[var(--gm-text)] px-3 py-1.5 text-xs font-semibold text-[var(--gm-bg)] hover:opacity-80 transition-opacity"
                         >
                           Enforce
                         </button>
@@ -232,16 +236,19 @@ export default function AdminDashboard() {
         </>
       )}
 
+      {/* Quick action cards */}
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         {[
           ['Withdrawal approvals', 'Review payout requests, KYC state, risk holds, and audit notes.', CheckCircle2],
           ['Support tickets', 'Resolve creator appeals, viewer reward disputes, and account issues.', Headphones],
           ['User enforcement', 'Warn, limit, block, or ban accounts with clear internal notes.', UserX],
         ].map(([title, copy, Icon]) => (
-          <article key={title} className="rounded-lg border border-slate-200 bg-white p-5">
-            <Icon size={22} className="text-blue-600" />
-            <h3 className="mt-4 text-lg font-bold text-slate-950">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{copy}</p>
+          <article key={title} className="surface rounded-xl p-5 card-hover">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
+              <Icon size={18} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-h3 text-[var(--gm-text)]">{title}</h3>
+            <p className="mt-2 text-caption text-[var(--gm-text-secondary)]">{copy}</p>
           </article>
         ))}
       </section>

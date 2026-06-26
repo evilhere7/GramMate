@@ -41,8 +41,6 @@
   /* Shadows */
   --shadow-soft: 0 4px 24px -4px rgba(0, 0, 0, 0.12);
   --shadow-elevated: 0 12px 40px -8px rgba(0, 0, 0, 0.2);
-  --shadow-glow-brand: 0 0 20px -4px var(--gm-brand);
-  --shadow-glow-accent: 0 0 20px -4px var(--gm-accent);
 }
 
 /* ─── Dark Mode (Default) ─── */
@@ -58,16 +56,16 @@
     --gm-text-tertiary: #5B5B73;
     --gm-border: rgba(255, 255, 255, 0.08);
     --gm-border-strong: rgba(255, 255, 255, 0.14);
-    --gm-brand: #7C3AED;
-    --gm-brand-light: #8B5CF6;
-    --gm-brand-dark: #6D28D9;
-    --gm-brand-glow: rgba(124, 58, 237, 0.15);
-    --gm-accent: #06B6D4;
-    --gm-accent-light: #22D3EE;
-    --gm-accent-glow: rgba(6, 182, 212, 0.12);
-    --gm-gradient-brand: linear-gradient(135deg, #7C3AED, #06B6D4);
+    --gm-brand: #5A52E6;
+    --gm-brand-light: #7A73F0;
+    --gm-brand-dark: #4338CA;
+    --gm-brand-glow: rgba(90, 82, 230, 0.1);
+    --gm-accent: #3B82F6;
+    --gm-accent-light: #60A5FA;
+    --gm-accent-glow: rgba(59, 130, 246, 0.08);
+    --gm-gradient-brand: linear-gradient(135deg, #5A52E6, #4338CA);
     --gm-gradient-surface: linear-gradient(180deg, #141428, #0B0B1A);
-    --gm-gradient-hero: linear-gradient(135deg, #0B0B1A 0%, #1A0A3E 50%, #0B1A2E 100%);
+    --gm-gradient-hero: linear-gradient(135deg, #0B0B1A 0%, #17173A 50%, #0B0B1A 100%);
     --gm-glass-bg: rgba(20, 20, 40, 0.6);
     --gm-glass-border: rgba(255, 255, 255, 0.06);
     color-scheme: dark;
@@ -85,16 +83,16 @@
     --gm-text-tertiary: #9898B0;
     --gm-border: rgba(0, 0, 0, 0.08);
     --gm-border-strong: rgba(0, 0, 0, 0.14);
-    --gm-brand: #7C3AED;
-    --gm-brand-light: #8B5CF6;
-    --gm-brand-dark: #6D28D9;
-    --gm-brand-glow: rgba(124, 58, 237, 0.08);
-    --gm-accent: #0891B2;
-    --gm-accent-light: #06B6D4;
-    --gm-accent-glow: rgba(6, 182, 212, 0.06);
-    --gm-gradient-brand: linear-gradient(135deg, #7C3AED, #06B6D4);
+    --gm-brand: #5A52E6;
+    --gm-brand-light: #6366F1;
+    --gm-brand-dark: #4338CA;
+    --gm-brand-glow: rgba(90, 82, 230, 0.08);
+    --gm-accent: #3B82F6;
+    --gm-accent-light: #60A5FA;
+    --gm-accent-glow: rgba(59, 130, 246, 0.06);
+    --gm-gradient-brand: linear-gradient(135deg, #6366F1, #4F46E5);
     --gm-gradient-surface: linear-gradient(180deg, #FFFFFF, #F8F8FC);
-    --gm-gradient-hero: linear-gradient(135deg, #F8F8FC 0%, #EDE9FE 50%, #E0F2FE 100%);
+    --gm-gradient-hero: linear-gradient(135deg, #F8F8FC 0%, #EEF2FF 50%, #F5F3FF 100%);
     --gm-glass-bg: rgba(255, 255, 255, 0.7);
     --gm-glass-border: rgba(0, 0, 0, 0.06);
     color-scheme: light;
@@ -262,10 +260,7 @@
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 var(--gm-brand-glow); }
-    50% { box-shadow: 0 0 16px 4px var(--gm-brand-glow); }
-  }
+
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-6px); }
@@ -293,8 +288,8 @@
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
   }
-  .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-  .animate-float { animation: float 3s ease-in-out infinite; }
+
+  .animate-float { transform: none; }
   .animate-spin-slow { animation: spin-slow 6s linear infinite; }
   .animate-count-up { animation: countUp 0.6s ease-out both; }
 
@@ -328,12 +323,7 @@
     border-color: var(--gm-border-strong);
   }
 
-  .glow-brand:hover {
-    box-shadow: var(--shadow-glow-brand);
-  }
-  .glow-accent:hover {
-    box-shadow: var(--shadow-glow-accent);
-  }
+
 }
 
 /* ─── Surface Utilities ─── */
@@ -347,12 +337,12 @@
     border: 1px solid var(--gm-border);
   }
   .surface-brand {
-    background: var(--gm-brand-glow);
-    border: 1px solid rgba(124, 58, 237, 0.2);
+    background: rgba(124, 58, 237, 0.07);
+    border: 1px solid rgba(124, 58, 237, 0.12);
   }
   .surface-accent {
-    background: var(--gm-accent-glow);
-    border: 1px solid rgba(6, 182, 212, 0.2);
+    background: rgba(6, 182, 212, 0.06);
+    border: 1px solid rgba(6, 182, 212, 0.1);
   }
 }
 

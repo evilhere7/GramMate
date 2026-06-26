@@ -51,10 +51,6 @@ export default function Login() {
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-2xl border border-[var(--gm-border)] bg-[var(--gm-surface)] lg:grid-cols-[0.95fr_1.05fr]">
         {/* Left Panel */}
         <aside className="relative hidden overflow-hidden gradient-hero p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          {/* Ambient blobs */}
-          <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-[var(--gm-brand)] opacity-[0.12] blur-[100px]" />
-          <div className="absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[var(--gm-accent)] opacity-[0.1] blur-[100px]" />
-
           <div className="relative">
             <Logo size="lg" className="[&_h1]:text-white [&_p]:text-white/50" />
           </div>
@@ -132,7 +128,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={authProcessing}
-                className="flex w-full items-center justify-center gap-2 rounded-xl gradient-brand py-3.5 font-bold text-white shadow-sm glow-brand transition-all hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl gradient-brand py-3.5 font-bold text-white shadow-sm hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97]"
               >
                 {authProcessing ? (
                   <>

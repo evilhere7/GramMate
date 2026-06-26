@@ -87,7 +87,7 @@ export default function MainLayout() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className="mt-2 mb-2 flex items-center gap-3 rounded-xl gradient-brand px-4 py-3 text-sm font-bold text-white shadow-sm glow-brand transition-all hover:shadow-md active:scale-[0.97]"
+                  className="mt-2 mb-2 flex items-center gap-3 rounded-xl bg-[var(--gm-brand)] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[var(--gm-brand-light)] active:scale-[0.97]"
                 >
                   <Icon className="h-5 w-5" aria-hidden="true" />
                   <span>{item.label}</span>
@@ -101,12 +101,12 @@ export default function MainLayout() {
                 to={item.path}
                 className={`group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? 'bg-[var(--gm-brand-glow)] text-[var(--gm-brand-light)]'
+                    ? 'bg-[var(--gm-surface-elevated)] text-[var(--gm-brand-light)]'
                     : 'text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)]'
                 }`}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full gradient-brand" />
+                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--gm-brand)]" />
                 )}
                 <Icon className="h-5 w-5" aria-hidden="true" />
                 <span>{item.label}</span>
@@ -206,7 +206,7 @@ export default function MainLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className="flex h-10 w-12 items-center justify-center rounded-xl gradient-brand text-white shadow-sm active:scale-95 transition-transform"
+                className="flex h-10 w-12 items-center justify-center rounded-xl bg-[var(--gm-brand)] text-white shadow-sm active:scale-95 transition-transform hover:bg-[var(--gm-brand-light)]"
                 aria-label={item.label}
               >
                 <Icon className="h-5 w-5" />

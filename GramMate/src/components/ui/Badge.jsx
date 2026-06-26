@@ -27,7 +27,7 @@ export default function Badge({
         inline-flex items-center gap-1.5 rounded-full font-semibold
         ${colorMap[color] || colorMap.neutral}
         ${sizeMap[size] || sizeMap.md}
-        ${pulse ? 'animate-pulse-glow' : ''}
+        ${pulse ? 'animate-pulse' : ''}
         ${className}
       `}
     >

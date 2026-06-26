@@ -18,22 +18,18 @@ export default function WalletDashboard() {
     if (!user) return;
     try {
       setLoading(true);
-      // Fetch wallet
       const { data: wData } = await supabase
         .from('wallets')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
-
       setWallet(wData);
 
-      // Fetch transactions
       const { data: tData } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-
       setTransactions(tData || []);
     } catch (err) {
       console.error('Error fetching wallet/transactions:', err);
@@ -42,9 +38,7 @@ export default function WalletDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchWalletData();
-  }, [user]);
+  useEffect(() => { fetchWalletData(); }, [user]);
 
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
@@ -66,40 +60,21 @@ export default function WalletDashboard() {
     }
 
     try {
-      // 1. Create withdrawal request
-      const { error: reqError } = await supabase
-        .from('withdrawal_requests')
-        .insert({
-          wallet_id: wallet.id,
-          user_id: user.id,
-          amount_cents: amountCents,
-          status: 'review'
-        });
-
+      const { error: reqError } = await supabase.from('withdrawal_requests').insert({
+        wallet_id: wallet.id, user_id: user.id, amount_cents: amountCents, status: 'review',
+      });
       if (reqError) throw reqError;
 
-      // 2. Also insert a pending withdrawal transaction to show in history and temporarily deduct from wallet if needed (or just show request)
-      const { error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          wallet_id: wallet.id,
-          user_id: user.id,
-          amount_cents: -amountCents,
-          transaction_type: 'withdrawal',
-          status: 'review'
-        });
-
+      const { error: txError } = await supabase.from('transactions').insert({
+        wallet_id: wallet.id, user_id: user.id, amount_cents: -amountCents,
+        transaction_type: 'withdrawal', status: 'review',
+      });
       if (txError) throw txError;
 
-      // 3. Update wallet balance locally (deduct pending withdrawal)
       const { error: walletUpdateError } = await supabase
         .from('wallets')
-        .update({
-          balance_cents: availableCents - amountCents,
-          pending_cents: (wallet.pending_cents || 0) + amountCents
-        })
+        .update({ balance_cents: availableCents - amountCents, pending_cents: (wallet.pending_cents || 0) + amountCents })
         .eq('id', wallet.id);
-
       if (walletUpdateError) throw walletUpdateError;
 
       setWithdrawSuccess(true);
@@ -112,32 +87,25 @@ export default function WalletDashboard() {
     }
   };
 
-  const formatCurrency = (cents) => {
-    const dollars = (cents || 0) / 100;
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(dollars);
-  };
+  const formatCurrency = (cents) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
 
   const availableBalance = wallet?.balance_cents || 0;
   const pendingBalance = wallet?.pending_cents || 0;
   const riskHoldBalance = wallet?.risk_hold_cents || 0;
 
-  // Find last payout: most recent completed withdrawal transaction
   const withdrawals = transactions.filter(t => t.transaction_type === 'withdrawal' && t.status === 'cleared');
   const lastPayoutCents = withdrawals.length > 0 ? Math.abs(withdrawals[0].amount_cents) : 0;
 
-  // Breakdown calculations
   const creatorEarningsCents = transactions
     .filter(t => ['ad_share', 'tip', 'donation', 'sponsorship'].includes(t.transaction_type) && t.status === 'cleared')
     .reduce((sum, t) => sum + t.amount_cents, 0);
-
   const viewerRewardsCents = transactions
     .filter(t => ['watch_reward', 'engagement_reward'].includes(t.transaction_type) && t.status === 'cleared')
     .reduce((sum, t) => sum + t.amount_cents, 0);
-
   const tipsDonationsCents = transactions
     .filter(t => ['tip', 'donation'].includes(t.transaction_type) && t.status === 'cleared')
     .reduce((sum, t) => sum + t.amount_cents, 0);
-
   const campaignRewardsCents = transactions
     .filter(t => t.transaction_type === 'campaign_reward' && t.status === 'cleared')
     .reduce((sum, t) => sum + t.amount_cents, 0);
@@ -150,122 +118,152 @@ export default function WalletDashboard() {
   ];
 
   if (loading && !wallet) {
-    return <div className="p-8 text-slate-500">Loading wallet...</div>;
+    return <div className="p-8 text-sm text-[var(--gm-text-secondary)]">Loading wallet…</div>;
   }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8">
+      {/* Header */}
       <header className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-blue-600">Wallet</p>
-          <h1 className="mt-2 text-4xl font-bold text-slate-950">Earnings and withdrawals</h1>
-          <p className="mt-3 max-w-2xl text-slate-600">Track available balance, pending clearing, payout methods, and all reward sources from a single ledger.</p>
+          <p className="text-overline text-[var(--gm-brand-light)]">Wallet</p>
+          <h1 className="mt-2 text-h1 text-[var(--gm-text)]">Earnings and withdrawals</h1>
+          <p className="mt-2 max-w-2xl text-body text-[var(--gm-text-secondary)]">
+            Track available balance, pending clearing, payout methods, and all reward sources from a single ledger.
+          </p>
         </div>
-        <button 
-          onClick={() => {
-            setWithdrawError(null);
-            setWithdrawSuccess(false);
-            setWithdrawOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+        <button
+          onClick={() => { setWithdrawError(null); setWithdrawSuccess(false); setWithdrawOpen(true); }}
+          className="inline-flex items-center justify-center gap-2 rounded-xl gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all active:scale-[0.97]"
         >
           Withdraw funds
-          <ArrowUpRight size={18} aria-hidden="true" />
+          <ArrowUpRight size={16} aria-hidden="true" />
         </button>
       </header>
 
+      {/* Balance cards */}
       <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <article className="rounded-lg border border-slate-200 bg-white p-6">
+        {/* Main balance card */}
+        <article className="surface rounded-xl p-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-500">Available balance</p>
-              <p className="mt-2 text-5xl font-bold tracking-normal text-slate-950">{formatCurrency(availableBalance)}</p>
+              <p className="text-caption text-[var(--gm-text-secondary)]">Available balance</p>
+              <p className="mt-2 text-[2.75rem] font-bold leading-none tracking-tight text-[var(--gm-text)]">
+                {formatCurrency(availableBalance)}
+              </p>
             </div>
-            <div className="rounded-md bg-blue-50 p-3 text-blue-700">
-              <Wallet size={24} aria-hidden="true" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
+              <Wallet size={20} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
             </div>
           </div>
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {[
               ['Pending', formatCurrency(pendingBalance), Clock],
               ['Last payout', formatCurrency(lastPayoutCents), CreditCard],
               ['Risk holds', formatCurrency(riskHoldBalance), ShieldCheck],
             ].map(([label, value, Icon]) => (
-              <div key={label} className="rounded-md bg-slate-50 p-4">
-                <Icon size={18} className="text-slate-500" aria-hidden="true" />
-                <p className="mt-3 text-sm text-slate-500">{label}</p>
-                <p className="mt-1 text-xl font-bold text-slate-950">{value}</p>
+              <div key={label} className="rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)] p-4">
+                <Icon size={16} className="text-[var(--gm-text-tertiary)]" aria-hidden="true" />
+                <p className="mt-3 text-caption text-[var(--gm-text-secondary)]">{label}</p>
+                <p className="mt-1 text-h3 text-[var(--gm-text)]">{value}</p>
               </div>
             ))}
           </div>
         </article>
 
-        <article className="rounded-lg border border-slate-200 bg-slate-950 p-6 text-white">
-          <ShieldCheck size={24} className="text-green-400" aria-hidden="true" />
-          <h2 className="mt-4 text-2xl font-bold">Withdrawal safeguards</h2>
-          <p className="mt-3 leading-7 text-slate-300">Every withdrawal runs through account verification, fake view detection, campaign rule checks, and manual review when risk increases.</p>
-          <div className="mt-6 grid gap-3">
+        {/* Safeguards card */}
+        <article className="surface rounded-xl p-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
+            <ShieldCheck size={18} className="text-success" aria-hidden="true" />
+          </div>
+          <h2 className="mt-4 text-h3 text-[var(--gm-text)]">Withdrawal safeguards</h2>
+          <p className="mt-2 text-body text-[var(--gm-text-secondary)]">
+            Every withdrawal runs through account verification, fake view detection, campaign rule checks, and manual review when risk increases.
+          </p>
+          <div className="mt-5 space-y-2">
             {['Stripe Connect ready', '48h clearing window', 'Audit trail on payout decisions'].map((item) => (
-              <div key={item} className="rounded-md bg-white/10 p-3 text-sm font-semibold text-slate-100">{item}</div>
+              <div key={item} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface-elevated)] px-3 py-2.5 text-sm font-semibold text-[var(--gm-text)]">
+                {item}
+              </div>
             ))}
           </div>
         </article>
       </section>
 
-      <div className="mt-6 flex gap-2 border-b border-slate-200">
+      {/* Tabs */}
+      <div className="mt-6 flex gap-1 border-b border-[var(--gm-border)]">
         {['overview', 'transactions', 'methods'].map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-3 text-sm font-bold capitalize ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-900'}`}>
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2.5 text-sm font-semibold capitalize transition-colors ${
+              activeTab === tab
+                ? 'border-b-2 border-[var(--gm-brand)] text-[var(--gm-brand-light)]'
+                : 'text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)]'
+            }`}
+          >
             {tab}
           </button>
         ))}
       </div>
 
+      {/* Overview tab */}
       {activeTab === 'overview' && (
-        <section className="mt-6 grid gap-4 md:grid-cols-4">
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {breakdown.map((item) => (
-            <div key={item.label} className="rounded-lg border border-slate-200 bg-white p-5">
-              <BadgeDollarSign size={20} className="text-blue-600" aria-hidden="true" />
-              <p className="mt-4 text-sm text-slate-500">{item.label}</p>
-              <p className="mt-1 text-2xl font-bold text-slate-950">{item.value}</p>
+            <div key={item.label} className="surface rounded-xl p-5 card-hover">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
+                <BadgeDollarSign size={18} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
+              </div>
+              <p className="mt-4 text-caption text-[var(--gm-text-secondary)]">{item.label}</p>
+              <p className="mt-1 text-h2 text-[var(--gm-text)]">{item.value}</p>
             </div>
           ))}
         </section>
       )}
 
+      {/* Transactions tab */}
       {activeTab === 'transactions' && (
-        <section className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <section className="mt-6 overflow-hidden rounded-xl surface">
           {transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-slate-500">
-              <Clock size={36} className="mb-2 text-slate-400" />
-              <p className="text-lg font-bold text-slate-950">No transactions yet</p>
-              <p className="text-sm mt-1">Earnings and withdrawals will appear here as they occur.</p>
+            <div className="flex flex-col items-center justify-center p-12 text-center">
+              <Clock size={32} className="mb-3 text-[var(--gm-text-tertiary)]" />
+              <p className="text-h3 text-[var(--gm-text)]">No transactions yet</p>
+              <p className="mt-1 text-body text-[var(--gm-text-secondary)]">Earnings and withdrawals will appear here as they occur.</p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-slate-200 p-4 text-sm font-bold text-slate-500">
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-[var(--gm-border)] px-5 py-3 text-caption font-semibold text-[var(--gm-text-secondary)]">
                 <span>Type</span><span>Amount</span><span>Status</span><span>Date</span>
               </div>
-              {transactions.map((tx) => (
-                <div key={tx.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-slate-100 p-4 text-sm last:border-b-0">
-                  <span className="font-semibold text-slate-900 capitalize">{tx.transaction_type.replace('_', ' ')}</span>
-                  <span className={`font-bold ${tx.amount_cents < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {tx.amount_cents < 0 ? '-' : '+'}{formatCurrency(Math.abs(tx.amount_cents))}
-                  </span>
-                  <span className="rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700 capitalize">{tx.status}</span>
-                  <span className="text-slate-500">{new Date(tx.created_at).toLocaleDateString()}</span>
-                </div>
-              ))}
+              <div className="divide-y divide-[var(--gm-border)]">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3.5 text-sm hover:bg-[var(--gm-surface-elevated)] transition-colors">
+                    <span className="font-semibold text-[var(--gm-text)] capitalize">{tx.transaction_type.replace('_', ' ')}</span>
+                    <span className={`font-bold ${tx.amount_cents < 0 ? 'text-danger' : 'text-success'}`}>
+                      {tx.amount_cents < 0 ? '-' : '+'}{formatCurrency(Math.abs(tx.amount_cents))}
+                    </span>
+                    <span className="rounded-full bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)] px-2.5 py-0.5 text-xs font-semibold text-[var(--gm-text-secondary)] capitalize">
+                      {tx.status}
+                    </span>
+                    <span className="text-[var(--gm-text-tertiary)]">{new Date(tx.created_at).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
             </>
           )}
         </section>
       )}
 
+      {/* Methods tab */}
       {activeTab === 'methods' && (
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-xl font-bold text-slate-950">Payout methods</h2>
-          <p className="mt-2 text-slate-600">Connect Stripe, verify identity, and download monthly tax-ready statements.</p>
-          <button className="mt-6 inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-3 font-bold text-slate-900 hover:bg-slate-50">
-            <Download size={18} aria-hidden="true" />
+        <section className="mt-6 surface rounded-xl p-6">
+          <h2 className="text-h3 text-[var(--gm-text)]">Payout methods</h2>
+          <p className="mt-2 text-body text-[var(--gm-text-secondary)]">
+            Connect Stripe, verify identity, and download monthly tax-ready statements.
+          </p>
+          <button className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[var(--gm-border)] px-4 py-2.5 text-sm font-semibold text-[var(--gm-text)] hover:bg-[var(--gm-surface-elevated)] transition-colors">
+            <Download size={16} aria-hidden="true" />
             Download statement
           </button>
         </section>
@@ -273,33 +271,36 @@ export default function WalletDashboard() {
 
       {/* Withdraw Modal */}
       {withdrawOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-xl font-bold text-slate-950">Withdraw Funds</h3>
-              <button onClick={() => setWithdrawOpen(false)} className="rounded-md p-1 text-slate-500 hover:bg-slate-100">
-                <X size={20} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md surface rounded-2xl p-6 shadow-elevated animate-scale-in">
+            <div className="flex items-center justify-between border-b border-[var(--gm-border)] pb-4">
+              <h3 className="text-h3 text-[var(--gm-text)]">Withdraw funds</h3>
+              <button
+                onClick={() => setWithdrawOpen(false)}
+                className="rounded-lg p-1.5 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] transition-colors"
+              >
+                <X size={18} />
               </button>
             </div>
             {withdrawSuccess ? (
-              <div className="my-6 text-center text-green-600">
-                <ShieldCheck size={48} className="mx-auto mb-2" />
-                <p className="font-bold">Withdrawal Requested Successfully</p>
-                <p className="text-sm mt-1">Your request is in review and will clear shortly.</p>
+              <div className="my-8 text-center">
+                <ShieldCheck size={40} className="mx-auto mb-3 text-success" />
+                <p className="text-h3 text-[var(--gm-text)]">Withdrawal requested</p>
+                <p className="mt-1 text-body text-[var(--gm-text-secondary)]">Your request is in review and will clear shortly.</p>
               </div>
             ) : (
-              <form onSubmit={handleWithdrawSubmit} className="mt-4 space-y-4">
+              <form onSubmit={handleWithdrawSubmit} className="mt-5 space-y-4">
                 {withdrawError && (
-                  <div className="rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">
+                  <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm font-semibold text-danger">
                     {withdrawError}
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Available to withdraw</label>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">{formatCurrency(availableBalance)}</p>
+                  <label className="block text-caption font-semibold text-[var(--gm-text-secondary)]">Available to withdraw</label>
+                  <p className="mt-1 text-h2 text-[var(--gm-text)]">{formatCurrency(availableBalance)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Amount to withdraw (USD)</label>
+                  <label className="block text-caption font-semibold text-[var(--gm-text-secondary)]">Amount (USD)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -307,16 +308,16 @@ export default function WalletDashboard() {
                     max={(availableBalance / 100).toString()}
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950"
+                    className="mt-1.5 w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] px-3.5 py-2.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] focus:border-[var(--gm-brand)] focus:outline-none transition-colors"
                     placeholder="e.g. 50.00"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-md bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
+                  className="w-full rounded-xl gradient-brand py-3 text-sm font-bold text-white hover:opacity-90 transition-all active:scale-[0.97]"
                 >
-                  Submit Request
+                  Submit request
                 </button>
               </form>
             )}

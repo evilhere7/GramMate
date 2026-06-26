@@ -8,26 +8,26 @@
 
 export const colors = {
   brand: {
-    DEFAULT: '#7C3AED',
-    light: '#8B5CF6',
-    dark: '#6D28D9',
-    50: '#F5F3FF',
-    100: '#EDE9FE',
-    200: '#DDD6FE',
-    500: '#8B5CF6',
-    600: '#7C3AED',
-    700: '#6D28D9',
-    900: '#4C1D95',
+    DEFAULT: '#5A52E6',
+    light: '#7A73F0',
+    dark: '#4338CA',
+    50: '#EEF2FF',
+    100: '#E0E7FF',
+    200: '#C7D2FE',
+    500: '#6366F1',
+    600: '#5A52E6',
+    700: '#4338CA',
+    900: '#312E81',
   },
   accent: {
-    DEFAULT: '#06B6D4',
-    light: '#22D3EE',
-    dark: '#0891B2',
-    50: '#ECFEFF',
-    100: '#CFFAFE',
-    500: '#06B6D4',
-    600: '#0891B2',
-    700: '#0E7490',
+    DEFAULT: '#3B82F6',
+    light: '#60A5FA',
+    dark: '#2563EB',
+    50: '#EFF6FF',
+    100: '#DBEAFE',
+    500: '#3B82F6',
+    600: '#2563EB',
+    700: '#1D4ED8',
   },
   success: {
     DEFAULT: '#10B981',
@@ -65,17 +65,17 @@ export const colors = {
 };
 
 export const gradients = {
-  brand: 'linear-gradient(135deg, #7C3AED, #06B6D4)',
-  brandSubtle: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(6,182,212,0.15))',
-  hero: 'linear-gradient(135deg, #0B0B1A 0%, #1A0A3E 50%, #0B1A2E 100%)',
+  brand: 'linear-gradient(135deg, #5A52E6, #4338CA)',
+  brandSubtle: 'linear-gradient(135deg, rgba(90,82,230,0.1), rgba(59,130,246,0.1))',
+  hero: 'linear-gradient(135deg, #0B0B1A 0%, #17173A 50%, #0B0B1A 100%)',
   surface: 'linear-gradient(180deg, #141428, #0B0B1A)',
 };
 
 export const shadows = {
   soft: '0 4px 24px -4px rgba(0, 0, 0, 0.12)',
   elevated: '0 12px 40px -8px rgba(0, 0, 0, 0.2)',
-  glowBrand: '0 0 20px -4px rgba(124, 58, 237, 0.4)',
-  glowAccent: '0 0 20px -4px rgba(6, 182, 212, 0.4)',
+  glowBrand: 'none',
+  glowAccent: 'none',
 };
 
 export const radius = {

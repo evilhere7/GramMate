@@ -18,8 +18,7 @@ export default function StatCard({
       <div className="flex items-center justify-between">
         {Icon && (
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-lg"
-            style={{ background: accentColor ? `${accentColor}15` : 'var(--gm-brand-glow)' }}
+            className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]"
           >
             <Icon
               size={20}

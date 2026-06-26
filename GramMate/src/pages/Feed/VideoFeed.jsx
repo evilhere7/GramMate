@@ -550,7 +550,7 @@ export default function VideoFeed() {
 
         {feedLoading ? (
           <div className="flex h-[80%] flex-col items-center justify-center gap-4 text-slate-300">
-            <span className="h-9 w-9 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+            <span className="h-9 w-9 animate-spin rounded-full border-2 border-[var(--gm-brand)] border-t-transparent" />
             <p className="text-sm font-bold">Loading videos...</p>
           </div>
         ) : filteredVideos.length === 0 ? (
@@ -573,14 +573,14 @@ export default function VideoFeed() {
               >
                 {video.url ? (
                   <video
-                    className="absolute h-full w-full object-cover"
-                    src={video.url}
-                    loop
-                    muted
-                    autoPlay={isActive}
-                    playsInline
-                    preload={index === 0 ? 'auto' : 'metadata'}
-                    aria-label={video.title}
+                     className="absolute h-full w-full object-cover"
+                     src={video.url}
+                     loop
+                     muted
+                     autoPlay={isActive}
+                     playsInline
+                     preload={index === 0 ? 'auto' : 'metadata'}
+                     aria-label={video.title}
                   />
                 ) : (
                   <div className="absolute h-full w-full bg-black flex items-center justify-center text-white">
@@ -600,9 +600,9 @@ export default function VideoFeed() {
                   <h2 className="text-2xl font-bold">{video.title}</h2>
                   <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-100">
                     <span>@{video.handle}</span>
-                    {video.verified && <BadgeCheck size={16} className="text-blue-400" aria-label="Verified creator" />}
+                    {video.verified && <BadgeCheck size={16} className="text-[var(--gm-accent)]" aria-label="Verified creator" />}
                     {isFollowed && (
-                      <span className="text-[10px] bg-blue-600/80 px-2 py-0.5 rounded-full font-bold">Following</span>
+                      <span className="text-[10px] bg-[var(--gm-brand)]/80 px-2 py-0.5 rounded-full font-bold">Following</span>
                     )}
                   </div>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200">{video.description}</p>
@@ -643,7 +643,7 @@ export default function VideoFeed() {
 
                   {/* Follow Button */}
                   <button onClick={() => handleFollow(video)} className="group flex flex-col items-center gap-1 text-white" aria-label="Follow creator">
-                    <span className={`flex h-11 w-11 items-center justify-center rounded-full bg-black/50 backdrop-blur transition-all group-hover:bg-white group-hover:text-slate-950 ${isFollowed ? 'text-blue-400 scale-105' : ''}`}>
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-full bg-black/50 backdrop-blur transition-all group-hover:bg-white group-hover:text-slate-950 ${isFollowed ? 'text-[var(--gm-brand-light)] scale-105' : ''}`}>
                       {isFollowed ? <UserCheck size={22} /> : <UserPlus size={22} />}
                     </span>
                     <span className="text-xs font-bold">{isFollowed ? 'Following' : 'Follow'}</span>
@@ -672,7 +672,7 @@ export default function VideoFeed() {
               setSearchQuery(e.target.value);
               if (activeTab !== 'Search') setActiveTab('Search');
             }}
-            className="w-full rounded-md border border-slate-700 bg-slate-900 py-3 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-600"
+            className="w-full rounded-md border border-slate-700 bg-slate-900 py-3 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)]"
             placeholder="Search videos, creators, topics"
           />
         </label>
@@ -682,7 +682,7 @@ export default function VideoFeed() {
             {['Reward eligible only', 'Hide reported creators', 'Show long videos', 'Auto-save liked videos'].map((control) => (
               <label key={control} className="flex items-center justify-between rounded-md border border-slate-800 p-3 text-sm font-semibold text-slate-200 cursor-pointer">
                 {control}
-                <input type="checkbox" className="h-4 w-4 accent-blue-600" defaultChecked={control !== 'Show long videos'} />
+                <input type="checkbox" className="h-4 w-4 accent-[var(--gm-brand)]" defaultChecked={control !== 'Show long videos'} />
               </label>
             ))}
           </div>
@@ -734,7 +734,7 @@ export default function VideoFeed() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                 {commentsLoading ? (
                   <div className="flex h-32 items-center justify-center">
-                    <span className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                    <span className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--gm-brand)] border-t-transparent" />
                   </div>
                 ) : commentsList.length === 0 ? (
                   <div className="flex h-64 flex-col items-center justify-center text-center text-slate-400">
@@ -745,7 +745,7 @@ export default function VideoFeed() {
                 ) : (
                   commentsList.map((comment) => (
                     <div key={comment.id} className="flex gap-3 text-sm">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-white uppercase">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--gm-brand)] font-bold text-white uppercase">
                         {comment.fullName ? comment.fullName[0] : (comment.username ? comment.username[0] : 'U')}
                       </div>
                       <div className="flex-1 space-y-1">
@@ -774,11 +774,11 @@ export default function VideoFeed() {
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
                     placeholder="Add comment..."
-                    className="flex-1 rounded-md border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                    className="flex-1 rounded-md border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)]"
                   />
                   <button
                     type="submit"
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
+                    className="rounded-md bg-[var(--gm-brand)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--gm-brand-light)] transition-colors"
                   >
                     Post
                   </button>

@@ -1,12 +1,13 @@
 import { forwardRef } from 'react';
 
 const variants = {
-  primary: 'gradient-brand text-white shadow-sm glow-brand',
+  primary: 'bg-[var(--gm-brand)] text-white shadow-sm hover:bg-[var(--gm-brand-light)] border border-[var(--gm-brand-dark)]/10',
   secondary: 'bg-[var(--gm-surface-elevated)] text-[var(--gm-text)] border border-[var(--gm-border)] hover:border-[var(--gm-border-strong)]',
   ghost: 'text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)] hover:bg-[var(--gm-surface)]',
   danger: 'bg-danger text-white hover:bg-danger/90 shadow-sm',
-  outline: 'border border-[var(--gm-brand)] text-[var(--gm-brand)] hover:bg-[var(--gm-brand-glow)]',
-  accent: 'bg-accent text-white hover:bg-accent/90 shadow-sm glow-accent',
+  outline: 'border border-[var(--gm-brand)] text-[var(--gm-brand)] hover:bg-[var(--gm-surface-elevated)]',
+  accent: 'bg-accent text-white hover:bg-accent/90 shadow-sm',
+  gradient: 'gradient-brand text-white shadow-sm hover:opacity-95',
 };
 
 const sizes = {
