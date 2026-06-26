@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Logo from '../../components/brand/Logo';
 
+const ADMIN_EMAIL = 'evilmc777@gmail.com';
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,37 +14,71 @@ export default function Login() {
   const { signIn, signInWithGoogle, resetPassword, authProcessing } = useAuth();
   const navigate = useNavigate();
 
+  const redirectAfterLogin = (userEmail) => {
+    if (userEmail === ADMIN_EMAIL) {
+      navigate('/admin');
+    } else {
+      navigate('/feed');
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (authProcessing) return;
     setError('');
+    setResetSent(false);
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+
     try {
-      await signIn(email, password);
-      navigate('/feed');
+      await signIn(email.trim(), password);
+      redirectAfterLogin(email.trim().toLowerCase());
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Failed to sign in');
+      setError(err?.message || 'Failed to sign in. Please try again.');
     }
   };
 
   const handlePasswordReset = async () => {
-    if (!email) {
+    if (authProcessing) return;
+    if (!email.trim()) {
       setError('Enter your email first so we know where to send the reset link.');
       return;
     }
+    setError('');
     try {
-      await resetPassword(email);
-      setResetSent(true);
+      const { error: resetError } = await resetPassword(email.trim());
+      if (resetError) {
+        setError(resetError.message || 'Failed to send reset link.');
+      } else {
+        setResetSent(true);
+      }
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Failed to send reset link');
+      setError(err?.message || 'Failed to send reset link.');
     }
   };
 
   const handleGoogleSignIn = async () => {
+    if (authProcessing) return;
     setError('');
+    setResetSent(false);
     try {
-      await signInWithGoogle('/feed');
-      navigate('/feed');
+      const result = await signInWithGoogle();
+      // After Google sign-in, the onAuthStateChanged listener in AuthContext
+      // will update the user. We check the result for email to determine redirect.
+      const googleEmail = result?.user?.email || '';
+      redirectAfterLogin(googleEmail.toLowerCase());
     } catch (err) {
-      setError(err?.message || 'Google sign-in failed.');
+      // Don't show error for popup-closed (user dismissed intentionally)
+      if (!err?.message?.includes('popup')) {
+        setError(err?.message || 'Google sign-in failed.');
+      }
     }
   };
 
@@ -83,7 +119,7 @@ export default function Login() {
             )}
             {resetSent && (
               <div className="mt-6 rounded-xl border border-success/30 bg-success/10 p-3 text-sm font-semibold text-success animate-fade-in">
-                Password reset email sent.
+                Password reset email sent. Check your inbox.
               </div>
             )}
 
@@ -99,6 +135,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none"
                     placeholder="you@example.com"
+                    autoComplete="email"
                   />
                 </span>
               </label>
@@ -114,12 +151,18 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none"
                     placeholder="Your password"
+                    autoComplete="current-password"
                   />
                 </span>
               </label>
 
               <div className="flex items-center justify-between">
-                <button type="button" onClick={handlePasswordReset} className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--gm-brand-light)] hover:text-[var(--gm-brand)] transition-colors">
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={authProcessing}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--gm-brand-light)] hover:text-[var(--gm-brand)] transition-colors disabled:opacity-50"
+                >
                   <KeyRound size={16} />
                   Reset password
                 </button>

@@ -11,12 +11,13 @@ import {
   confirmPasswordReset as fbConfirmPasswordReset
 } from 'firebase/auth';
 import auth from '../lib/firebase';
-import getSupabaseClient from '../lib/supabase/client';
+import { supabase } from '../lib/supabase';
 import { upsertProfile } from './supabaseService';
 
-const supabase = getSupabaseClient;
+let pendingSignupMetadata = null;
 
-export async function signUpWithEmail({ email, password, displayName }) {
+export async function signUpWithEmail({ email, password, displayName, role, username }) {
+  pendingSignupMetadata = { role, username };
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   if (displayName) {
     await fbUpdateProfile(userCredential.user, { displayName });
@@ -29,7 +30,10 @@ export async function signInWithEmail({ email, password }) {
   return userCredential;
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(metadata = {}) {
+  if (metadata?.role) {
+    pendingSignupMetadata = { role: metadata.role };
+  }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({
     prompt: 'select_account'
@@ -58,7 +62,10 @@ export function onAuthChanged(callback) {
     const displayName = firebaseUser.displayName || email.split('@')[0];
     const photoURL = firebaseUser.photoURL || '';
 
-    let cleanUsername = displayName.replace(/[^a-zA-Z0-9_]/g, '');
+    let cleanUsername = pendingSignupMetadata?.username || displayName.replace(/[^a-zA-Z0-9_]/g, '');
+    const finalRole = pendingSignupMetadata?.role || 'viewer';
+    pendingSignupMetadata = null; // reset
+
     if (cleanUsername.length < 3) {
       cleanUsername = (cleanUsername + '_user').substring(0, 30);
     }
@@ -113,6 +120,7 @@ export function onAuthChanged(callback) {
           username: cleanUsername,
           full_name: displayName,
           avatar_url: photoURL,
+          role: finalRole,
         });
       } catch (profileErr) {
         console.warn('[supabaseAuth] Profile sync failed:', profileErr);

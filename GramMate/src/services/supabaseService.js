@@ -1,6 +1,4 @@
-import getSupabaseClient from '../lib/supabase/client';
-
-const supabase = getSupabaseClient;
+import { supabase } from '../lib/supabase';
 
 export async function upsertProfile(profile) {
   try {
@@ -17,6 +15,10 @@ export async function upsertProfile(profile) {
       is_verified: !!profile.is_verified,
       updated_at: new Date().toISOString(),
     };
+
+    if (profile.role) {
+      normalized.role = profile.role;
+    }
 
     // Check if profile exists
     const { data: existing, error: fetchErr } = await supabase

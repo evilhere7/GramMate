@@ -57,21 +57,21 @@ export default function Signup() {
   const { signUp, signInWithGoogle, authProcessing } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignup = async (e) => {
+   const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      await signUp(email, password, { username, fullName: '', role: role.toUpperCase() });
+      await signUp(email, password, { username, fullName: '', role: role.toLowerCase() });
       navigate('/feed');
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Failed to create an account');
+      setError(err.message || 'Failed to create an account');
     }
   };
 
   const handleGoogleSignUp = async () => {
     setError('');
     try {
-      await signInWithGoogle('/feed');
+      await signInWithGoogle({ role: role.toLowerCase() });
       navigate('/feed');
     } catch (err) {
       setError(err?.message || 'Google sign-up failed.');
