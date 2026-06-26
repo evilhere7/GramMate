@@ -1,11 +1,10 @@
-
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import SplashLogo from '../../components/brand/SplashLogo';
 import useProfile from '../../hooks/useProfile';
 
-export default function ProtectedRoute({ children, requireAuth = true, requireCreator = false }) {
-  const { isAuthenticated, loading } = useAuth();
+export default function ProtectedRoute({ children, requireAuth = true, requireCreator = false, requireAdmin = false }) {
+  const { isAuthenticated, loading, user } = useAuth();
   const { loading: profileLoading, isCreator } = useProfile();
 
   if (loading || (requireAuth && requireCreator && profileLoading)) {
@@ -19,6 +18,12 @@ export default function ProtectedRoute({ children, requireAuth = true, requireCr
   if (!requireAuth && isAuthenticated) {
     // If it's a public only route (like login) and user is authenticated, send to feed
     return <Navigate to="/" replace />;
+  }
+
+  if (requireAuth && requireAdmin) {
+    if (user?.email !== 'evilmc777@gmail.com') {
+      return <Navigate to="/403" replace />;
+    }
   }
 
   if (requireAuth && requireCreator && !isCreator) {

