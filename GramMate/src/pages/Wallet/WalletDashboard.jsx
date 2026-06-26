@@ -134,7 +134,7 @@ export default function WalletDashboard() {
         </div>
         <button
           onClick={() => { setWithdrawError(null); setWithdrawSuccess(false); setWithdrawOpen(true); }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all active:scale-[0.97]"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]"
         >
           Withdraw funds
           <ArrowUpRight size={16} aria-hidden="true" />
@@ -315,7 +315,7 @@ export default function WalletDashboard() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-xl gradient-brand py-3 text-sm font-bold text-white hover:opacity-90 transition-all active:scale-[0.97]"
+                  className="w-full rounded-xl bg-[var(--gm-brand)] py-3 text-sm font-bold text-white hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]"
                 >
                   Submit request
                 </button>

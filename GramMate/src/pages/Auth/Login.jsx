@@ -97,7 +97,7 @@ export default function Login() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none"
+                    className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none"
                     placeholder="you@example.com"
                   />
                 </span>
@@ -112,7 +112,7 @@ export default function Login() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-2 focus:ring-[var(--gm-brand-glow)] focus:outline-none"
+                    className="w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] py-3 pl-11 pr-3.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] transition-all focus:border-[var(--gm-brand)] focus:ring-1 focus:ring-[var(--gm-brand)] focus:outline-none"
                     placeholder="Your password"
                   />
                 </span>
@@ -128,7 +128,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={authProcessing}
-                className="flex w-full items-center justify-center gap-2 rounded-xl gradient-brand py-3.5 font-bold text-white shadow-sm hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] py-3.5 font-bold text-white shadow-sm hover:bg-[var(--gm-brand-light)] transition-all disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97]"
               >
                 {authProcessing ? (
                   <>

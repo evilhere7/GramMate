@@ -225,7 +225,7 @@ function EditProfileModal({ open, onClose, profile, user, onSaved }) {
           <button type="button" onClick={onClose} disabled={saving} className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button type="submit" disabled={saving || checkingUsername} className="inline-flex items-center justify-center gap-2 rounded-xl gradient-brand px-5 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-all disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" disabled={saving || checkingUsername} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--gm-brand-light)] transition-all disabled:cursor-not-allowed disabled:opacity-60">
             {saving && <Loader2 size={16} className="animate-spin" />}
             {saving ? 'Saving…' : 'Save profile'}
           </button>
@@ -332,7 +332,7 @@ export default function CreatorProfilePage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => toast.success(`Followed @${profile?.username}`)}
-                  className="inline-flex items-center gap-2 rounded-xl gradient-brand px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-all active:scale-[0.97]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--gm-brand)] px-4 py-2.5 text-sm font-bold text-white hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]"
                 >
                   <UserPlus size={16} /> Follow
                 </button>

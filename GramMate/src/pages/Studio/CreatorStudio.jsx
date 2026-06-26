@@ -105,7 +105,7 @@ export default function CreatorStudio() {
         </div>
         <button
           onClick={() => navigate('/upload')}
-          className="inline-flex items-center justify-center gap-2 rounded-xl gradient-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all active:scale-[0.97]"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]"
         >
           <Plus size={16} aria-hidden="true" />
           New upload
