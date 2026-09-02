@@ -1,531 +1,322 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { 
+  Sparkles, 
+  Lock, 
+  Mail, 
+  User, 
+  ArrowRight, 
+  Flame, 
+  Check, 
+  AlertCircle 
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { loginWithEmail, signUpWithEmail } from '../services/firebase';
 
-// 3D Canvas Component for animated background
-const Canvas3D = () => {
+// 3D Canvas Animated Constellation Mesh
+const ParticleConstellationCanvas = () => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
+    let animationId;
 
-    let particles = [];
-    let time = 0;
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
 
-    // Create particles
-    for (let i = 0; i < 50; i++) {
+    const particles = [];
+    const count = 65;
+
+    for (let i = 0; i < count; i++) {
       particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        z: Math.random() * 1000,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2,
-        size: Math.random() * 2 + 1,
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        radius: Math.random() * 2 + 1,
+        color: i % 3 === 0 ? '#FF2E63' : i % 3 === 1 ? '#08D9D6' : '#ffffff'
       });
     }
 
     const animate = () => {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.25)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      time += 0.002;
-
-      particles.forEach((p, i) => {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.z += 2;
 
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
-        if (p.z > 1000) p.z = 0;
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
-        const scale = 1000 / (p.z + 1000);
-        const px = p.x * scale;
-        const py = p.y * scale;
-        const size = p.size * scale;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = p.color;
+        ctx.fill();
 
-        ctx.fillStyle = `rgba(255, 107, 53, ${0.5 * (1 - p.z / 1000)})`;
-        ctx.fillRect(px, py, size, size);
+        // Connect nearby points
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p.x - p2.x;
+          const dy = p.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Draw connections
-        particles.forEach((p2, j) => {
-          if (i < j) {
-            const dx = p.x - p2.x;
-            const dy = p.y - p2.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 150) {
-              ctx.strokeStyle = `rgba(255, 107, 53, ${0.1 * (1 - dist / 150)})`;
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(px, py);
-              ctx.lineTo(p2.x * (1000 / (p2.z + 1000)), p2.y * (1000 / (p2.z + 1000)));
-              ctx.stroke();
-            }
+          if (dist < 130) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(255, 46, 99, ${0.15 * (1 - dist / 130)})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
           }
-        });
-      });
+        }
+      }
 
-      requestAnimationFrame(animate);
+      animationId = requestAnimationFrame(animate);
     };
 
     animate();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resize);
+    };
   }, []);
 
-  return <Canvas3DElement ref={canvasRef} />;
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-0" />;
 };
 
-const Canvas3DElement = styled.canvas`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: 1;
-`;
-
-const LoginContainer = styled.div`
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-  position: relative;
-  overflow: hidden;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 20% 50%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(76, 175, 255, 0.1) 0%, transparent 50%);
-    z-index: 0;
-    pointer-events: none;
-  }
-`;
-
-const Canvas3DWrapper = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-`;
-
-const FormWrapper = styled.div`
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 440px;
-  padding: 0 20px;
-`;
-
-const GlassmorphismCard = styled.div`
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  padding: 50px 40px;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  animation: slideUp 0.6s ease-out;
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (max-width: 600px) {
-    padding: 40px 25px;
-  }
-`;
-
-const Title = styled.h1`
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 10px 0;
-  background: linear-gradient(135deg, #ff6b35 0%, #4cbaff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-`;
-
-const Subtitle = styled.p`
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  margin: 0 0 30px 0;
-`;
-
-const TabContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-bottom: 30px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-`;
-
-const Tab = styled.button`
-  flex: 1;
-  background: none;
-  border: none;
-  padding: 12px 0;
-  color: ${props => (props.active ? '#ff6b35' : 'rgba(255, 255, 255, 0.5)')};
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  position: relative;
-  transition: color 0.3s ease;
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: #ff6b35;
-    transform: ${props => (props.active ? 'scaleX(1)' : 'scaleX(0)')};
-    transition: transform 0.3s ease;
-  }
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.8);
-  }
-`;
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-  animation: fadeIn 0.4s ease-out;
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-`;
-
-const Label = styled.label`
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  color: #fff;
-  font-size: 14px;
-  transition: all 0.3s ease;
-
-  &:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.15);
-    border-color: #ff6b35;
-    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
-  }
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
-`;
-
-const SubmitButton = styled.button`
-  width: 100%;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, #ff6b35 0%, #ff8955 100%);
-  border: none;
-  border-radius: 12px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 20px;
-  position: relative;
-  overflow: hidden;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(255, 107, 53, 0.3);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  background: rgba(255, 59, 48, 0.1);
-  border: 1px solid rgba(255, 59, 48, 0.3);
-  color: #ff3b30;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 20px;
-`;
-
-const SuccessMessage = styled.div`
-  background: rgba(52, 211, 153, 0.1);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  color: #34d399;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 20px;
-`;
-
-const DividerContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 25px 0;
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
-
-const DividerText = styled.span`
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-`;
-
-const FooterText = styled.p`
-  text-align: center;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 20px;
-
-  a {
-    color: #ff6b35;
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
-
-    &:hover {
-      color: #ff8955;
-    }
-  }
-`;
-
-const LoginPage = ({ onLoginSuccess }) => {
+export default function LoginPage() {
+  const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: '',
+    displayName: ''
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
     setError('');
   };
 
-  const validateForm = () => {
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
-      return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return false;
-    }
-
-    if (isSignUp) {
-      if (!formData.displayName) {
-        setError('Please enter your name');
-        return false;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
-        return false;
-      }
-    }
-
-    return true;
+  const handleDemoLogin = (role) => {
+    setLoading(true);
+    setSuccess(`Entering GramMate as demo ${role}...`);
+    setTimeout(() => {
+      navigate('/');
+    }, 800);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
+    if (!formData.email || !formData.password) {
+      setError('Please provide email and password.');
+      return;
+    }
 
     setLoading(true);
+    setError('');
+
     try {
       if (isSignUp) {
+        if (!formData.displayName) {
+          setError('Please provide your name.');
+          setLoading(false);
+          return;
+        }
         await signUpWithEmail(formData.email, formData.password, formData.displayName);
-        setSuccess('Account created successfully! Welcome to GramMate!');
-        setTimeout(() => onLoginSuccess(), 2000);
+        setSuccess('Account created! Welcome to GramMate.');
       } else {
         await loginWithEmail(formData.email, formData.password);
         setSuccess('Logged in successfully!');
-        setTimeout(() => onLoginSuccess(), 1000);
       }
+      setTimeout(() => navigate('/'), 1200);
     } catch (err) {
-      const errorMessage = err.code === 'auth/email-already-in-use' 
-        ? 'Email already in use'
-        : err.code === 'auth/user-not-found'
-        ? 'User not found'
-        : err.code === 'auth/wrong-password'
-        ? 'Wrong password'
-        : err.message || 'An error occurred';
-      setError(errorMessage);
+      // Graceful fallback for local development without live Firebase config
+      setError(err.message || 'Authentication error. You can also use Demo Login below.');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsSignUp(!isSignUp);
-    setError('');
-    setSuccess('');
-  };
-
   return (
-    <LoginContainer>
-      <Canvas3DWrapper>
-        <Canvas3D />
-      </Canvas3DWrapper>
-      
-      <FormWrapper>
-        <GlassmorphismCard>
-          <Title>GramMate</Title>
-          <Subtitle>{isSignUp ? 'Create your account' : 'Welcome back'}</Subtitle>
+    <div className="relative min-h-screen w-full bg-zinc-950 flex items-center justify-center p-4 overflow-hidden select-none">
+      {/* 3D Particle Constellation Background */}
+      <ParticleConstellationCanvas />
 
-          <TabContainer>
-            <Tab active={!isSignUp} onClick={() => !isSignUp && toggleMode()}>
-              Login
-            </Tab>
-            <Tab active={isSignUp} onClick={() => isSignUp && toggleMode()}>
-              Sign Up
-            </Tab>
-          </TabContainer>
+      {/* Glow Orbs */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-secondary/15 blur-[120px] rounded-full pointer-events-none" />
 
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          {success && <SuccessMessage>{success}</SuccessMessage>}
+      {/* Main Glass Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 30, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative z-10 w-full max-w-md bg-zinc-900/70 backdrop-blur-2xl border border-zinc-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl"
+      >
+        {/* Brand Logo & Title */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary to-rose-400 text-white font-black text-xl shadow-lg shadow-primary/30 mb-3">
+            GM
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Gram<span className="text-primary">Mate</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+            {isSignUp ? 'Create your creator account & start earning' : 'The Next-Gen Short-Form Video & Watch-to-Earn Platform'}
+          </p>
+        </div>
 
-          <form onSubmit={handleSubmit}>
-            {isSignUp && (
-              <FormGroup>
-                <Label>Full Name</Label>
-                <Input
+        {/* Tab Toggle */}
+        <div className="flex bg-zinc-950/80 p-1 rounded-2xl border border-zinc-800 mb-6">
+          <button
+            type="button"
+            onClick={() => { setIsSignUp(false); setError(''); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              !isSignUp ? 'bg-primary text-white shadow-md shadow-primary/30' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setIsSignUp(true); setError(''); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              isSignUp ? 'bg-primary text-white shadow-md shadow-primary/30' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+            <Check size={16} className="shrink-0" />
+            <span>{success}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div>
+              <label className="text-xs font-bold text-zinc-300 block mb-1.5">Full Name</label>
+              <div className="relative">
+                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input 
                   type="text"
                   name="displayName"
-                  placeholder="John Doe"
                   value={formData.displayName}
                   onChange={handleInputChange}
+                  placeholder="e.g. Alex Rivera"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-white focus:outline-none focus:border-primary transition-colors placeholder:text-zinc-600"
                 />
-              </FormGroup>
-            )}
+              </div>
+            </div>
+          )}
 
-            <FormGroup>
-              <Label>Email Address</Label>
-              <Input
+          <div>
+            <label className="text-xs font-bold text-zinc-300 block mb-1.5">Email Address</label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input 
                 type="email"
                 name="email"
-                placeholder="you@example.com"
                 value={formData.email}
                 onChange={handleInputChange}
+                placeholder="you@example.com"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-white focus:outline-none focus:border-primary transition-colors placeholder:text-zinc-600"
               />
-            </FormGroup>
+            </div>
+          </div>
 
-            <FormGroup>
-              <Label>Password</Label>
-              <Input
+          <div>
+            <label className="text-xs font-bold text-zinc-300 block mb-1.5">Password</label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input 
                 type="password"
                 name="password"
-                placeholder="••••••••"
                 value={formData.password}
                 onChange={handleInputChange}
+                placeholder="••••••••"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs sm:text-sm text-white focus:outline-none focus:border-primary transition-colors placeholder:text-zinc-600"
               />
-            </FormGroup>
+            </div>
+          </div>
 
-            {isSignUp && (
-              <FormGroup>
-                <Label>Confirm Password</Label>
-                <Input
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-            )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-primary to-rose-600 hover:from-primary/90 hover:to-rose-600/90 text-white font-extrabold rounded-xl shadow-lg shadow-primary/25 text-sm transition-all flex items-center justify-center gap-2 mt-2"
+          >
+            <span>{loading ? 'Authenticating...' : isSignUp ? 'Sign Up & Start Earning' : 'Sign In'}</span>
+            <ArrowRight size={16} />
+          </button>
+        </form>
 
-            <SubmitButton type="submit" disabled={loading}>
-              {loading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
-            </SubmitButton>
-          </form>
+        {/* Divider */}
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-zinc-800" />
+          </div>
+          <span className="relative bg-zinc-900 px-3 text-[11px] font-bold text-zinc-500 uppercase">
+            Instant Zero-Friction Demo
+          </span>
+        </div>
 
-          <DividerContainer>
-            <DividerText>OR</DividerText>
-          </DividerContainer>
+        {/* Demo Fast Access Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleDemoLogin('Creator')}
+            className="p-3 rounded-2xl bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 text-left transition-all group"
+          >
+            <span className="flex items-center gap-1 text-[11px] font-bold text-primary mb-0.5">
+              <Sparkles size={12} /> Creator Mode
+            </span>
+            <p className="text-xs font-semibold text-white group-hover:text-primary transition-colors">
+              Explore as Alex Rivera
+            </p>
+          </button>
 
-          <FooterText>
-            {isSignUp ? "Already have an account? " : "Don't have an account? "}
-            <a onClick={toggleMode} style={{ cursor: 'pointer' }}>
-              {isSignUp ? 'Sign in' : 'Sign up'}
-            </a>
-          </FooterText>
-        </GlassmorphismCard>
-      </FormWrapper>
-    </LoginContainer>
+          <button
+            type="button"
+            onClick={() => handleDemoLogin('Viewer')}
+            className="p-3 rounded-2xl bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 text-left transition-all group"
+          >
+            <span className="flex items-center gap-1 text-[11px] font-bold text-secondary mb-0.5">
+              <Flame size={12} /> Watch & Earn
+            </span>
+            <p className="text-xs font-semibold text-white group-hover:text-secondary transition-colors">
+              Explore as Viewer
+            </p>
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
-};
-
-export default LoginPage;
+}
