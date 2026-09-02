@@ -1,326 +1,443 @@
-import { useState, useEffect } from 'react';
-import { ArrowUpRight, BadgeDollarSign, Clock, CreditCard, Download, ShieldCheck, Wallet, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Clock, 
+  ShieldCheck, 
+  TrendingUp, 
+  Flame, 
+  CreditCard, 
+  Check, 
+  X, 
+  ChevronRight,
+  Zap,
+  Building2,
+  Wallet,
+  Gift
+} from 'lucide-react';
+
+const INITIAL_TRANSACTIONS = [
+  { id: 'tx-1', type: 'earn', title: 'Watch-to-Earn Pool Yield', desc: '48 mins watched across feed', time: '10 mins ago', amount: 0.082, status: 'completed' },
+  { id: 'tx-2', type: 'tip_received', title: 'Tip from @crypto_fan', desc: 'On video: Tokyo Street Vibes', time: '2 hours ago', amount: 5.00, status: 'completed' },
+  { id: 'tx-3', type: 'withdraw', title: 'Payout to Stripe Bank', desc: 'Transfer to Chase •••• 4821', time: 'Yesterday', amount: -50.00, status: 'completed' },
+  { id: 'tx-4', type: 'earn', title: 'Watch-to-Earn Pool Yield', desc: '120 mins watched across feed', time: '2 days ago', amount: 0.194, status: 'completed' },
+  { id: 'tx-5', type: 'tip_received', title: 'Tip from @sarah_creator', desc: 'On video: AI Workflow Secrets', time: '3 days ago', amount: 2.00, status: 'completed' },
+  { id: 'tx-6', type: 'bonus', title: 'Streak Multiplier Bonus (1.5x)', desc: '7-Day Watch Streak Milestone', time: '4 days ago', amount: 10.00, status: 'completed' },
+];
 
 export default function WalletDashboard() {
-  const { user } = useAuth();
+  const [balance, setBalance] = useState(124.50);
+  const [pending] = useState(14.20);
+  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
   const [activeTab, setActiveTab] = useState('overview');
-  const [wallet, setWallet] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawError, setWithdrawError] = useState(null);
+  const [filterType, setFilterType] = useState('all');
+
+  // Modals
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('50.00');
+  const [withdrawMethod, setWithdrawMethod] = useState('usdc'); // 'usdc' | 'bank'
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
-  const fetchWalletData = async () => {
-    if (!user) return;
-    try {
-      setLoading(true);
-      const { data: wData } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setWallet(wData);
+  const [showDepositModal, setShowDepositModal] = useState(false);
 
-      const { data: tData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      setTransactions(tData || []);
-    } catch (err) {
-      console.error('Error fetching wallet/transactions:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchWalletData(); }, [user]);
-
-  const handleWithdrawSubmit = async (e) => {
+  const handleWithdraw = (e) => {
     e.preventDefault();
-    setWithdrawError(null);
-    setWithdrawSuccess(false);
+    const amt = parseFloat(withdrawAmount);
+    if (isNaN(amt) || amt <= 0 || amt > balance) return;
 
-    const amount = parseFloat(withdrawAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setWithdrawError('Please enter a valid positive amount.');
-      return;
-    }
-
-    const amountCents = Math.round(amount * 100);
-    const availableCents = wallet?.balance_cents || 0;
-
-    if (amountCents > availableCents) {
-      setWithdrawError('Insufficient available balance.');
-      return;
-    }
-
-    try {
-      const { error: reqError } = await supabase.from('withdrawal_requests').insert({
-        wallet_id: wallet.id, user_id: user.id, amount_cents: amountCents, status: 'review',
-      });
-      if (reqError) throw reqError;
-
-      const { error: txError } = await supabase.from('transactions').insert({
-        wallet_id: wallet.id, user_id: user.id, amount_cents: -amountCents,
-        transaction_type: 'withdrawal', status: 'review',
-      });
-      if (txError) throw txError;
-
-      const { error: walletUpdateError } = await supabase
-        .from('wallets')
-        .update({ balance_cents: availableCents - amountCents, pending_cents: (wallet.pending_cents || 0) + amountCents })
-        .eq('id', wallet.id);
-      if (walletUpdateError) throw walletUpdateError;
-
-      setWithdrawSuccess(true);
-      setWithdrawAmount('');
-      await fetchWalletData();
-      setTimeout(() => setWithdrawOpen(false), 2000);
-    } catch (err) {
-      console.error('Withdrawal error:', err);
-      setWithdrawError(err.message || 'Failed to submit withdrawal request.');
-    }
+    setBalance(prev => prev - amt);
+    const newTx = {
+      id: `tx-${Date.now()}`,
+      type: 'withdraw',
+      title: withdrawMethod === 'usdc' ? 'Withdrawal to Solana/USDC' : 'Payout to Stripe Bank',
+      desc: withdrawMethod === 'usdc' ? 'Instant Web3 Wallet Transfer' : 'Direct Deposit',
+      time: 'Just now',
+      amount: -amt,
+      status: 'completed'
+    };
+    setTransactions([newTx, ...transactions]);
+    setWithdrawSuccess(true);
+    setTimeout(() => {
+      setWithdrawSuccess(false);
+      setShowWithdrawModal(false);
+    }, 1800);
   };
 
-  const formatCurrency = (cents) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
-
-  const availableBalance = wallet?.balance_cents || 0;
-  const pendingBalance = wallet?.pending_cents || 0;
-  const riskHoldBalance = wallet?.risk_hold_cents || 0;
-
-  const withdrawals = transactions.filter(t => t.transaction_type === 'withdrawal' && t.status === 'cleared');
-  const lastPayoutCents = withdrawals.length > 0 ? Math.abs(withdrawals[0].amount_cents) : 0;
-
-  const creatorEarningsCents = transactions
-    .filter(t => ['ad_share', 'tip', 'donation', 'sponsorship'].includes(t.transaction_type) && t.status === 'cleared')
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-  const viewerRewardsCents = transactions
-    .filter(t => ['watch_reward', 'engagement_reward'].includes(t.transaction_type) && t.status === 'cleared')
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-  const tipsDonationsCents = transactions
-    .filter(t => ['tip', 'donation'].includes(t.transaction_type) && t.status === 'cleared')
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-  const campaignRewardsCents = transactions
-    .filter(t => t.transaction_type === 'campaign_reward' && t.status === 'cleared')
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-
-  const breakdown = [
-    { label: 'Creator earnings', value: formatCurrency(creatorEarningsCents) },
-    { label: 'Viewer rewards', value: formatCurrency(viewerRewardsCents) },
-    { label: 'Tips and donations', value: formatCurrency(tipsDonationsCents) },
-    { label: 'Campaign rewards', value: formatCurrency(campaignRewardsCents) },
-  ];
-
-  if (loading && !wallet) {
-    return <div className="p-8 text-sm text-[var(--gm-text-secondary)]">Loading wallet…</div>;
-  }
+  const filteredTransactions = transactions.filter(t => {
+    if (filterType === 'all') return true;
+    if (filterType === 'earnings') return t.type === 'earn' || t.type === 'bonus';
+    if (filterType === 'tips') return t.type === 'tip_received';
+    if (filterType === 'withdrawals') return t.type === 'withdraw';
+    return true;
+  });
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8">
+    <div className="min-h-full w-full bg-zinc-950 text-white p-4 md:p-8 max-w-5xl mx-auto pb-28 md:pb-12">
       {/* Header */}
-      <header className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <p className="text-overline text-[var(--gm-brand-light)]">Wallet</p>
-          <h1 className="mt-2 text-h1 text-[var(--gm-text)]">Earnings and withdrawals</h1>
-          <p className="mt-2 max-w-2xl text-body text-[var(--gm-text-secondary)]">
-            Track available balance, pending clearing, payout methods, and all reward sources from a single ledger.
+          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+            <span>Creator & Viewer Wallet</span>
+            <span className="flex items-center gap-1 text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full">
+              <Flame size={14} className="fill-amber-400" /> 1.5x Multiplier Active
+            </span>
+          </h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            Real-time Watch-to-Earn accrual, tips, and instant multi-chain / fiat withdrawals.
           </p>
         </div>
-        <button
-          onClick={() => { setWithdrawError(null); setWithdrawSuccess(false); setWithdrawOpen(true); }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--gm-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]"
-        >
-          Withdraw funds
-          <ArrowUpRight size={16} aria-hidden="true" />
-        </button>
-      </header>
 
-      {/* Balance cards */}
-      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        {/* Main balance card */}
-        <article className="surface rounded-xl p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-caption text-[var(--gm-text-secondary)]">Available balance</p>
-              <p className="mt-2 text-[2.75rem] font-bold leading-none tracking-tight text-[var(--gm-text)]">
-                {formatCurrency(availableBalance)}
-              </p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
-              <Wallet size={20} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {[
-              ['Pending', formatCurrency(pendingBalance), Clock],
-              ['Last payout', formatCurrency(lastPayoutCents), CreditCard],
-              ['Risk holds', formatCurrency(riskHoldBalance), ShieldCheck],
-            ].map(([label, value, Icon]) => (
-              <div key={label} className="rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)] p-4">
-                <Icon size={16} className="text-[var(--gm-text-tertiary)]" aria-hidden="true" />
-                <p className="mt-3 text-caption text-[var(--gm-text-secondary)]">{label}</p>
-                <p className="mt-1 text-h3 text-[var(--gm-text)]">{value}</p>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        {/* Safeguards card */}
-        <article className="surface rounded-xl p-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
-            <ShieldCheck size={18} className="text-success" aria-hidden="true" />
-          </div>
-          <h2 className="mt-4 text-h3 text-[var(--gm-text)]">Withdrawal safeguards</h2>
-          <p className="mt-2 text-body text-[var(--gm-text-secondary)]">
-            Every withdrawal runs through account verification, fake view detection, campaign rule checks, and manual review when risk increases.
-          </p>
-          <div className="mt-5 space-y-2">
-            {['Stripe Connect ready', '48h clearing window', 'Audit trail on payout decisions'].map((item) => (
-              <div key={item} className="rounded-lg border border-[var(--gm-border)] bg-[var(--gm-surface-elevated)] px-3 py-2.5 text-sm font-semibold text-[var(--gm-text)]">
-                {item}
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      {/* Tabs */}
-      <div className="mt-6 flex gap-1 border-b border-[var(--gm-border)]">
-        {['overview', 'transactions', 'methods'].map((tab) => (
+        <div className="flex items-center gap-2.5">
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 text-sm font-semibold capitalize transition-colors ${
-              activeTab === tab
-                ? 'border-b-2 border-[var(--gm-brand)] text-[var(--gm-brand-light)]'
-                : 'text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)]'
-            }`}
+            onClick={() => setShowWithdrawModal(true)}
+            className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold text-sm rounded-xl shadow-lg shadow-primary/25 transition-all flex items-center gap-2"
           >
-            {tab}
+            <span>Withdraw</span>
+            <ArrowUpRight size={16} />
           </button>
-        ))}
+          <button
+            onClick={() => setShowDepositModal(true)}
+            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 font-bold text-sm rounded-xl transition-all"
+          >
+            Deposit / Buy
+          </button>
+        </div>
       </div>
 
-      {/* Overview tab */}
-      {activeTab === 'overview' && (
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {breakdown.map((item) => (
-            <div key={item.label} className="surface rounded-xl p-5 card-hover">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
-                <BadgeDollarSign size={18} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
+      {/* Balance Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        {/* Main Available Balance */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="md:col-span-2 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800 p-6 md:p-8 rounded-3xl relative overflow-hidden shadow-2xl flex flex-col justify-between"
+        >
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/15 blur-3xl rounded-full pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 w-32 h-32 bg-secondary/10 blur-3xl rounded-full pointer-events-none" />
+
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Available Balance</span>
+              <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                <TrendingUp size={12} /> +$18.40 today
               </div>
-              <p className="mt-4 text-caption text-[var(--gm-text-secondary)]">{item.label}</p>
-              <p className="mt-1 text-h2 text-[var(--gm-text)]">{item.value}</p>
             </div>
+            
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+              ${balance.toFixed(2)} <span className="text-sm font-semibold text-zinc-400 font-mono">USDC</span>
+            </h2>
+            <p className="text-xs text-zinc-400 mt-2">Accruing live every second from Watch-to-Earn videos.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-zinc-800/80">
+            <div>
+              <span className="text-[11px] text-zinc-400 block mb-0.5">Lifetime Watch Rewards</span>
+              <span className="text-base font-extrabold text-secondary">$84.60</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-zinc-400 block mb-0.5">Tips & Creator Gifts</span>
+              <span className="text-base font-extrabold text-amber-400">$89.90</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Pending Clearance Card */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex flex-col justify-between shadow-xl"
+        >
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Pending Clearing</span>
+              <Clock size={18} className="text-amber-400" />
+            </div>
+            <h3 className="text-3xl font-extrabold text-white">${pending.toFixed(2)}</h3>
+            <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+              Bot & fraud verification clears in 24 hours via GramMate smart risk engine.
+            </p>
+          </div>
+
+          <div className="bg-zinc-950/80 border border-zinc-800/80 p-3 rounded-2xl flex items-center gap-2.5 mt-4">
+            <ShieldCheck size={18} className="text-secondary shrink-0" />
+            <span className="text-xs font-medium text-zinc-300">Protected by Stripe Connect & Web3 Multi-sig</span>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center justify-between border-b border-zinc-800 mb-6">
+        <div className="flex gap-4">
+          {['overview', 'transactions', 'methods'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-4 px-1 font-bold text-sm capitalize transition-colors relative ${
+                activeTab === tab ? 'text-primary' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <motion.div layoutId="wallet-tab-line" className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-primary" />
+              )}
+            </button>
           ))}
-        </section>
-      )}
+        </div>
 
-      {/* Transactions tab */}
-      {activeTab === 'transactions' && (
-        <section className="mt-6 overflow-hidden rounded-xl surface">
-          {transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center">
-              <Clock size={32} className="mb-3 text-[var(--gm-text-tertiary)]" />
-              <p className="text-h3 text-[var(--gm-text)]">No transactions yet</p>
-              <p className="mt-1 text-body text-[var(--gm-text-secondary)]">Earnings and withdrawals will appear here as they occur.</p>
+        {activeTab === 'transactions' && (
+          <div className="flex items-center gap-1.5 pb-2">
+            {['all', 'earnings', 'tips', 'withdrawals'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFilterType(f)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-colors ${
+                  filterType === f ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Overview Tab Content */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-3">
+              <div className="p-3 bg-secondary/15 text-secondary rounded-xl">
+                <Zap size={20} />
+              </div>
+              <div>
+                <span className="text-xs text-zinc-400 font-medium">Yield Rate</span>
+                <p className="text-lg font-bold text-white">$0.045 / min</p>
+              </div>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-[var(--gm-border)] px-5 py-3 text-caption font-semibold text-[var(--gm-text-secondary)]">
-                <span>Type</span><span>Amount</span><span>Status</span><span>Date</span>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-3">
+              <div className="p-3 bg-primary/15 text-primary rounded-xl">
+                <Gift size={20} />
               </div>
-              <div className="divide-y divide-[var(--gm-border)]">
-                {transactions.map((tx) => (
-                  <div key={tx.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3.5 text-sm hover:bg-[var(--gm-surface-elevated)] transition-colors">
-                    <span className="font-semibold text-[var(--gm-text)] capitalize">{tx.transaction_type.replace('_', ' ')}</span>
-                    <span className={`font-bold ${tx.amount_cents < 0 ? 'text-danger' : 'text-success'}`}>
-                      {tx.amount_cents < 0 ? '-' : '+'}{formatCurrency(Math.abs(tx.amount_cents))}
-                    </span>
-                    <span className="rounded-full bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)] px-2.5 py-0.5 text-xs font-semibold text-[var(--gm-text-secondary)] capitalize">
-                      {tx.status}
-                    </span>
-                    <span className="text-[var(--gm-text-tertiary)]">{new Date(tx.created_at).toLocaleDateString()}</span>
+              <div>
+                <span className="text-xs text-zinc-400 font-medium">Tips Sent / Received</span>
+                <p className="text-lg font-bold text-white">18 Total</p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-3">
+              <div className="p-3 bg-emerald-500/15 text-emerald-400 rounded-xl">
+                <CreditCard size={20} />
+              </div>
+              <div>
+                <span className="text-xs text-zinc-400 font-medium">Payout Speed</span>
+                <p className="text-lg font-bold text-white">Instant (&lt;5s)</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity List */}
+          <div>
+            <h3 className="text-lg font-bold text-white mb-4">Recent Activity</h3>
+            <div className="space-y-3">
+              {transactions.slice(0, 4).map(tx => (
+                <div key={tx.id} className="flex items-center justify-between p-4 bg-zinc-900/70 hover:bg-zinc-900 rounded-2xl border border-zinc-800/80 transition-colors">
+                  <div className="flex items-center gap-3.5">
+                    <div className={`p-3 rounded-2xl ${
+                      tx.amount > 0 
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' 
+                        : 'bg-primary/15 text-primary border border-primary/20'
+                    }`}>
+                      {tx.amount > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-white">{tx.title}</p>
+                      <p className="text-xs text-zinc-500">{tx.desc} • {tx.time}</p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
+                  <div className={`text-base font-extrabold ${tx.amount > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                    {tx.amount > 0 ? `+$${tx.amount.toFixed(2)}` : `-$${Math.abs(tx.amount).toFixed(2)}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Methods tab */}
+      {/* Transactions Tab */}
+      {activeTab === 'transactions' && (
+        <div className="space-y-3">
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500 text-sm">No transactions found for this filter.</div>
+          ) : (
+            filteredTransactions.map(tx => (
+              <div key={tx.id} className="flex items-center justify-between p-4 bg-zinc-900/70 hover:bg-zinc-900 rounded-2xl border border-zinc-800/80 transition-colors">
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-3 rounded-2xl ${
+                    tx.amount > 0 
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' 
+                      : 'bg-primary/15 text-primary border border-primary/20'
+                  }`}>
+                    {tx.amount > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-white">{tx.title}</p>
+                    <p className="text-xs text-zinc-500">{tx.desc} • {tx.time}</p>
+                  </div>
+                </div>
+                <div className={`text-base font-extrabold ${tx.amount > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                  {tx.amount > 0 ? `+$${tx.amount.toFixed(2)}` : `-$${Math.abs(tx.amount).toFixed(2)}`}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Payout Methods Tab */}
       {activeTab === 'methods' && (
-        <section className="mt-6 surface rounded-xl p-6">
-          <h2 className="text-h3 text-[var(--gm-text)]">Payout methods</h2>
-          <p className="mt-2 text-body text-[var(--gm-text-secondary)]">
-            Connect Stripe, verify identity, and download monthly tax-ready statements.
-          </p>
-          <button className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[var(--gm-border)] px-4 py-2.5 text-sm font-semibold text-[var(--gm-text)] hover:bg-[var(--gm-surface-elevated)] transition-colors">
-            <Download size={16} aria-hidden="true" />
-            Download statement
-          </button>
-        </section>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-secondary uppercase tracking-wider">Web3 Direct</span>
+                <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-bold">Connected</span>
+              </div>
+              <h4 className="text-lg font-bold text-white mb-1">Solana / Phantom Wallet</h4>
+              <p className="text-xs text-zinc-400 font-mono">7xKW...98Lq (USDC / SOL)</p>
+            </div>
+            <button className="mt-6 w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold rounded-xl transition-colors">
+              Manage Wallet Address
+            </button>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Fiat Banking</span>
+                <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-bold">Verified</span>
+              </div>
+              <h4 className="text-lg font-bold text-white mb-1">Stripe Connect Payouts</h4>
+              <p className="text-xs text-zinc-400">Chase Checking •••• 4821</p>
+            </div>
+            <button className="mt-6 w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold rounded-xl transition-colors">
+              Update Bank Account
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Withdraw Modal */}
-      {withdrawOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md surface rounded-2xl p-6 shadow-elevated animate-scale-in">
-            <div className="flex items-center justify-between border-b border-[var(--gm-border)] pb-4">
-              <h3 className="text-h3 text-[var(--gm-text)]">Withdraw funds</h3>
-              <button
-                onClick={() => setWithdrawOpen(false)}
-                className="rounded-lg p-1.5 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md w-full relative shadow-2xl">
+            <button onClick={() => setShowWithdrawModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white">
+              <X size={20} />
+            </button>
+
             {withdrawSuccess ? (
-              <div className="my-8 text-center">
-                <ShieldCheck size={40} className="mx-auto mb-3 text-success" />
-                <p className="text-h3 text-[var(--gm-text)]">Withdrawal requested</p>
-                <p className="mt-1 text-body text-[var(--gm-text-secondary)]">Your request is in review and will clear shortly.</p>
+              <div className="text-center py-6">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center mb-3">
+                  <Check size={32} className="stroke-[3]" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1">Withdrawal Initiated!</h3>
+                <p className="text-xs text-zinc-400">${withdrawAmount} is on its way to your destination.</p>
               </div>
             ) : (
-              <form onSubmit={handleWithdrawSubmit} className="mt-5 space-y-4">
-                {withdrawError && (
-                  <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm font-semibold text-danger">
-                    {withdrawError}
+              <form onSubmit={handleWithdraw}>
+                <h3 className="text-xl font-bold text-white mb-1">Withdraw Earnings</h3>
+                <p className="text-xs text-zinc-400 mb-6">Transfer available balance with zero platform fee.</p>
+
+                {/* Method selector */}
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod('usdc')}
+                    className={`p-3.5 rounded-2xl border text-left transition-all ${
+                      withdrawMethod === 'usdc' ? 'bg-secondary/15 border-secondary text-white' : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <Zap size={18} className="text-secondary mb-1" />
+                    <span className="text-xs font-bold block">Instant USDC</span>
+                    <span className="text-[10px] text-zinc-400">&lt;5s on Solana</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod('bank')}
+                    className={`p-3.5 rounded-2xl border text-left transition-all ${
+                      withdrawMethod === 'bank' ? 'bg-primary/15 border-primary text-white' : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <Building2 size={18} className="text-primary mb-1" />
+                    <span className="text-xs font-bold block">Bank Payout</span>
+                    <span className="text-[10px] text-zinc-400">Stripe Connect ACH</span>
+                  </button>
+                </div>
+
+                {/* Amount input */}
+                <div className="mb-6">
+                  <div className="flex justify-between text-xs mb-1.5 font-semibold">
+                    <span className="text-zinc-400">Amount to withdraw</span>
+                    <span className="text-primary cursor-pointer" onClick={() => setWithdrawAmount(balance.toFixed(2))}>Max (${balance.toFixed(2)})</span>
                   </div>
-                )}
-                <div>
-                  <label className="block text-caption font-semibold text-[var(--gm-text-secondary)]">Available to withdraw</label>
-                  <p className="mt-1 text-h2 text-[var(--gm-text)]">{formatCurrency(availableBalance)}</p>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-zinc-400">$</span>
+                    <input 
+                      type="number"
+                      step="0.01"
+                      max={balance}
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-3 pl-9 pr-4 text-base font-bold text-white focus:outline-none focus:border-primary"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-caption font-semibold text-[var(--gm-text-secondary)]">Amount (USD)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    max={(availableBalance / 100).toString()}
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-[var(--gm-border)] bg-[var(--gm-bg)] px-3.5 py-2.5 text-[var(--gm-text)] placeholder:text-[var(--gm-text-tertiary)] focus:border-[var(--gm-brand)] focus:outline-none transition-colors"
-                    placeholder="e.g. 50.00"
-                    required
-                  />
-                </div>
+
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-[var(--gm-brand)] py-3 text-sm font-bold text-white hover:bg-[var(--gm-brand-light)] transition-all active:scale-[0.97]"
+                  disabled={parseFloat(withdrawAmount) > balance || parseFloat(withdrawAmount) <= 0}
+                  className="w-full py-3.5 bg-gradient-to-r from-primary to-rose-600 hover:from-primary/90 hover:to-rose-600/90 disabled:opacity-40 text-white font-extrabold rounded-xl shadow-lg shadow-primary/20 text-sm transition-all"
                 >
-                  Submit request
+                  Confirm ${withdrawAmount} Payout
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Deposit Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full relative text-center">
+            <button onClick={() => setShowDepositModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white">
+              <X size={20} />
+            </button>
+            <div className="w-14 h-14 rounded-2xl bg-secondary/20 text-secondary mx-auto flex items-center justify-center mb-3">
+              <Wallet size={28} />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-1">Deposit / Buy Tokens</h3>
+            <p className="text-xs text-zinc-400 mb-6">Top up your balance to tip creators and unlock exclusive premium drops.</p>
+            <div className="space-y-2.5">
+              {['10.00', '25.00', '50.00', '100.00'].map(amt => (
+                <button
+                  key={amt}
+                  onClick={() => {
+                    setBalance(prev => prev + parseFloat(amt));
+                    setShowDepositModal(false);
+                  }}
+                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl text-sm transition-colors flex justify-between px-5 items-center"
+                >
+                  <span>Buy ${amt} Tokens</span>
+                  <ChevronRight size={16} className="text-zinc-400" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

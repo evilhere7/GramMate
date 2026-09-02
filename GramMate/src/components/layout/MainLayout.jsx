@@ -1,101 +1,67 @@
+import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, Compass, Home, Moon, PlusSquare, Shield, Sun, User as UserIcon, Wallet } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
-import Logo from '../brand/Logo';
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { 
+  Home, 
+  Compass, 
+  PlusSquare, 
+  Wallet, 
+  User as UserIcon, 
+  ShieldAlert,
+  Flame,
+  ArrowUpRight,
+  LogOut
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const NAV_ITEMS = [
-  { icon: Home, label: 'Home', path: '/' },
-  { icon: Compass, label: 'Feed', path: '/feed' },
+  { icon: Home, label: 'Feed', path: '/' },
+  { icon: Compass, label: 'Discover', path: '/discover' },
   { icon: PlusSquare, label: 'Create', path: '/upload', special: true },
-  { icon: BarChart3, label: 'Studio', path: '/studio' },
-  { icon: Wallet, label: 'Wallet', path: '/wallet' },
-  { icon: UserIcon, label: 'Profile', path: '/profile/me' },
-  { icon: Shield, label: 'Admin', path: '/admin', adminOnly: true },
+  { icon: Wallet, label: 'Wallet', path: '/wallet', badge: '+$18' },
+  { icon: UserIcon, label: 'Profile', path: '/profile' },
 ];
 
 export default function MainLayout() {
-  const { isAuthenticated, user, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
-  const [walletBalance, setWalletBalance] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  // Fetch real wallet balance
-  useEffect(() => {
-    if (!user) return;
-    const fetchWallet = async () => {
-      try {
-        const { data } = await supabase
-          .from('wallets')
-          .select('balance_cents')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        setWalletBalance(data?.balance_cents ?? 0);
-      } catch (err) {
-        console.error('Error fetching wallet for sidebar:', err);
-      }
-    };
-
-    const checkAdmin = async () => {
-      if (user?.email === 'evilmc777@gmail.com') {
-        setIsAdmin(true);
-        return;
-      }
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-        setIsAdmin(data?.role === 'admin' || data?.role === 'ADMIN');
-      } catch (err) {
-        console.error('Error checking admin role:', err);
-      }
-    };
-
-    fetchWallet();
-    checkAdmin();
-  }, [user]);
-
-  const formatBalance = (cents) => {
-    if (cents === null) return '—';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
-  };
-
-  const filteredNavItems = NAV_ITEMS.filter(item => {
-    if (item.adminOnly && !isAdmin) return false;
-    return true;
-  });
 
   return (
-    <div className="flex min-h-screen bg-[var(--gm-bg)]">
-      {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden h-screen w-[272px] shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-surface)] md:sticky md:top-0 md:flex">
-        {/* Logo */}
-        <div className="p-5 pb-2">
-          <Logo size="md" />
+    <div className="flex h-screen bg-zinc-950 text-white overflow-hidden select-none">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 border-r border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl h-full p-4 relative z-40">
+        {/* Brand Header */}
+        <div className="flex items-center justify-between mb-8 px-2 pt-2">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary via-rose-500 to-secondary flex items-center justify-center font-black text-white text-lg shadow-lg shadow-primary/30 group-hover:scale-105 transition-transform">
+              GM
+            </div>
+            <div>
+              <div className="text-xl font-black tracking-tight text-white flex items-center gap-1">
+                <span>Gram</span><span className="text-primary">Mate</span>
+              </div>
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block -mt-1">
+                Watch-to-Earn
+              </span>
+            </div>
+          </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-0.5 px-3 pt-4" aria-label="Main navigation">
-          {filteredNavItems.map((item) => {
+        {/* Navigation Items */}
+        <nav className="flex-1 space-y-1.5">
+          {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path
-              || (item.path === '/feed' && location.pathname === '/explore');
+            const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '');
 
             if (item.special) {
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className="mt-2 mb-2 flex items-center gap-3 rounded-xl bg-[var(--gm-brand)] px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[var(--gm-brand-light)] active:scale-[0.97]"
-                >
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span>{item.label}</span>
-                </Link>
+                <div key={item.path} className="pt-2 pb-2">
+                  <Link
+                    to={item.path}
+                    className="flex items-center justify-center gap-2.5 w-full py-3 bg-gradient-to-r from-primary via-rose-500 to-secondary hover:opacity-95 text-white font-extrabold rounded-2xl shadow-lg shadow-primary/25 transition-all group"
+                  >
+                    <PlusSquare size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+                    <span>Upload Video</span>
+                  </Link>
+                </div>
               );
             }
 
@@ -103,133 +69,131 @@ export default function MainLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-[var(--gm-surface-elevated)] text-[var(--gm-brand-light)]'
-                    : 'text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)]'
+                className={`flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 group ${
+                  isActive 
+                    ? 'bg-zinc-900 text-white border border-zinc-800 font-bold shadow-md shadow-black/40' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/60 font-semibold'
                 }`}
               >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--gm-brand)]" />
+                <div className="flex items-center gap-3.5">
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-zinc-400 group-hover:text-white'} transition-colors`} />
+                  <span className="text-sm">{item.label}</span>
+                </div>
+
+                {item.badge && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    {item.badge}
+                  </span>
                 )}
-                <Icon className="h-5 w-5" aria-hidden="true" />
-                <span>{item.label}</span>
               </Link>
             );
           })}
+
+          {/* Admin link for easy showcase */}
+          <Link
+            to="/admin"
+            className={`flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-semibold ${
+              location.pathname === '/admin'
+                ? 'bg-zinc-900 text-white border border-zinc-800'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+            }`}
+          >
+            <ShieldAlert className="w-5 h-5 text-amber-400" />
+            <span className="text-sm">Admin Radar</span>
+          </Link>
         </nav>
 
-        {/* Bottom Section */}
-        <div className="mt-auto space-y-3 border-t border-[var(--gm-border)] p-4">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)] transition-colors"
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-          </button>
+        {/* Creator Wallet Card on Sidebar */}
+        <div className="mt-auto">
+          <div className="p-4 bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800/80 rounded-2xl relative overflow-hidden shadow-xl mb-3">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/20 blur-2xl rounded-full pointer-events-none" />
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Your Balance</span>
+              <span className="text-[10px] font-bold text-secondary flex items-center gap-0.5">
+                <Flame size={12} className="fill-secondary" /> 1.5x active
+              </span>
+            </div>
+            <p className="text-2xl font-black text-white tracking-tight">$124.50</p>
+            <Link 
+              to="/wallet" 
+              className="text-xs font-bold text-primary hover:text-rose-400 mt-2.5 inline-flex items-center gap-1 transition-colors"
+            >
+              <span>Manage Wallet</span>
+              <ArrowUpRight size={14} />
+            </Link>
+          </div>
 
-          {isAuthenticated && (
-            <>
-              {/* Real Wallet Balance */}
-              <div className="rounded-xl surface-brand p-4">
-                <p className="text-overline text-[var(--gm-brand-light)]">Available balance</p>
-                <p className="mt-1 text-h2 text-[var(--gm-text)]">
-                  {formatBalance(walletBalance)}
-                </p>
-                <p className="mt-2 text-caption text-[var(--gm-text-tertiary)]">
-                  Withdrawals unlock after trust checks
-                </p>
+          {/* User Profile Mini Tab */}
+          <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/50 border border-zinc-850">
+            <Link to="/profile" className="flex items-center gap-2.5 group">
+              <img 
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                alt="Profile" 
+                className="w-8 h-8 rounded-full object-cover border border-primary/50 group-hover:scale-105 transition-transform"
+              />
+              <div>
+                <p className="text-xs font-bold text-white group-hover:text-primary transition-colors">Alex Rivera</p>
+                <p className="text-[10px] text-zinc-500 font-semibold">@alex_creator</p>
               </div>
+            </Link>
 
-              {/* Sign Out */}
-              <button
-                onClick={signOut}
-                className="w-full rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface-elevated)] hover:text-[var(--gm-text)] transition-colors"
-              >
-                Sign out
-              </button>
-            </>
-          )}
-
-          <p className="px-4 pt-1 text-[10px] font-medium text-[var(--gm-text-tertiary)]">
-            © 2026 GramMate
-          </p>
+            <Link to="/login" className="p-2 text-zinc-500 hover:text-white transition-colors" title="Switch Account / Sign In">
+              <LogOut size={16} />
+            </Link>
+          </div>
         </div>
       </aside>
 
-      {/* ─── Main Content ─── */}
-      <main className="flex min-h-screen w-full flex-1 flex-col">
-        {/* Mobile Header */}
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--gm-border)] glass px-4 md:hidden">
-          <Logo size="sm" tagline={false} />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="rounded-lg p-2 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] transition-colors"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            <Link
-              to="/upload"
-              className="rounded-lg p-2 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] transition-colors"
-              aria-label="Upload video"
-            >
-              <PlusSquare size={20} />
-            </Link>
-            <button
-              className="relative rounded-lg p-2 text-[var(--gm-text-secondary)] hover:bg-[var(--gm-surface)] transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell size={20} />
-            </button>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="flex-1">
-          <Outlet />
-        </div>
+      {/* Main Content Viewport */}
+      <main className="flex-1 relative h-full w-full bg-black overflow-hidden flex flex-col">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, scale: 0.99 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.99 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="h-full w-full overflow-y-auto no-scrollbar"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      {/* ─── Mobile Bottom Nav ─── */}
-      <nav
-        className="fixed bottom-0 z-50 flex h-16 w-full items-center justify-around border-t border-[var(--gm-border)] glass px-2 md:hidden"
-        aria-label="Mobile navigation"
-      >
-        {filteredNavItems.filter(item => !item.adminOnly).map((item) => {
+      {/* Mobile Glassmorphic Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/80 flex justify-around items-center h-16 px-3 z-50">
+        {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path
-            || (item.path === '/feed' && location.pathname === '/explore');
-
+          const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '');
+          
           if (item.special) {
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="flex h-10 w-12 items-center justify-center rounded-xl bg-[var(--gm-brand)] text-white shadow-sm active:scale-95 transition-transform hover:bg-[var(--gm-brand-light)]"
-                aria-label={item.label}
+              <Link 
+                key={item.path} 
+                to={item.path} 
+                className="flex items-center justify-center w-12 h-10 bg-gradient-to-tr from-primary to-rose-500 text-white rounded-2xl shadow-lg shadow-primary/30 active:scale-95 transition-transform"
               >
-                <Icon className="h-5 w-5" />
+                <PlusSquare size={22} />
               </Link>
             );
           }
 
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex h-full w-14 flex-col items-center justify-center transition-colors ${
-                isActive
-                  ? 'text-[var(--gm-brand-light)]'
-                  : 'text-[var(--gm-text-tertiary)]'
+            <Link 
+              key={item.path} 
+              to={item.path} 
+              className={`flex flex-col items-center justify-center w-14 h-full transition-colors relative ${
+                isActive ? 'text-primary' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 1.8} />
-              <span className="mt-1 text-[10px] font-medium">{item.label}</span>
+              <Icon size={20} className={isActive ? 'stroke-[2.5]' : 'stroke-2'} />
+              <span className="text-[10px] mt-1 font-bold tracking-tight">{item.label}</span>
+              {isActive && (
+                <motion.div 
+                  layoutId="mobile-nav-dot"
+                  className="w-1 h-1 rounded-full bg-primary absolute -bottom-1"
+                />
+              )}
             </Link>
           );
         })}

@@ -1,41 +1,37 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
-import ProtectedRoute from './components/layout/ProtectedRoute';
-import Login from './pages/Auth/Login';
-import Signup from './pages/Auth/Signup';
-import ForgotPassword from './pages/Auth/ForgotPassword';
-import ResetPassword from './pages/Auth/ResetPassword';
-import ForbiddenPage from './pages/Auth/ForbiddenPage';
 import VideoFeed from './pages/Feed/VideoFeed';
 import WalletDashboard from './pages/Wallet/WalletDashboard';
 import UploadPage from './pages/Upload/UploadPage';
 import CreatorProfilePage from './pages/Profile/CreatorProfilePage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
-import LandingPage from './pages/Landing/LandingPage';
-import CreatorStudio from './pages/Studio/CreatorStudio';
+import Login from './pages/Auth/Login';
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        {/* Auth */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth"  element={<Login />} />
 
+        {/* Main App with Sidebar Layout */}
         <Route path="/" element={<MainLayout />}>
-          <Route path="feed" element={<VideoFeed />} />
-          <Route path="explore" element={<VideoFeed />} />
-          <Route path="wallet" element={<ProtectedRoute><WalletDashboard /></ProtectedRoute>} />
-          <Route path="profile/me" element={<ProtectedRoute><CreatorProfilePage /></ProtectedRoute>} />
-          <Route path="upload" element={<ProtectedRoute requireCreator><UploadPage /></ProtectedRoute>} />
-          <Route path="studio" element={<ProtectedRoute requireCreator><CreatorStudio /></ProtectedRoute>} />
+          <Route index element={<VideoFeed />} />
+          <Route path="feed"     element={<VideoFeed />} />
+          <Route path="discover" element={<VideoFeed isDiscoverMode={true} />} />
+          <Route path="wallet"   element={<WalletDashboard />} />
+          <Route path="profile"  element={<CreatorProfilePage />} />
+          <Route path="profile/:userId" element={<CreatorProfilePage />} />
+          <Route path="upload"   element={<UploadPage />} />
+          <Route path="studio"   element={<UploadPage />} />
         </Route>
 
-        <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/403" element={<ForbiddenPage />} />
+        {/* Admin */}
+        <Route path="/admin" element={<AdminDashboard />} />
 
-        <Route path="/login" element={<ProtectedRoute requireAuth={false}><Login /></ProtectedRoute>} />
-        <Route path="/signup" element={<ProtectedRoute requireAuth={false}><Signup /></ProtectedRoute>} />
-        <Route path="/forgot-password" element={<ProtectedRoute requireAuth={false}><ForgotPassword /></ProtectedRoute>} />
-        <Route path="/reset-password" element={<ProtectedRoute requireAuth={false}><ResetPassword /></ProtectedRoute>} />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
