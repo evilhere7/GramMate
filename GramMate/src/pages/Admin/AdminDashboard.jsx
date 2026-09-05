@@ -1,206 +1,550 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  ShieldAlert, 
+  ShieldCheck, 
   Users, 
-  Check, 
-  X, 
+  Video, 
+  AlertTriangle, 
+  DollarSign, 
   ArrowLeft,
-  Bot,
-  DollarSign
+  Search,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../contexts/AuthContext';
+import { 
+  fetchAdminMetrics, 
+  fetchAdminUsers, 
+  fetchAdminVideos, 
+  deleteVideo, 
+  fetchAdminReports, 
+  updateAdminReportStatus,
+  fetchAdminTransactions 
+} from '../../services/supabaseService';
+import { TableRowSkeleton } from '../../components/ui/Skeleton';
+import EmptyState from '../../components/ui/EmptyState';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('fraud');
-  
-  const [fraudItems, setFraudItems] = useState([
-    { id: 'f-1', user: '@spam_bot_99', videoId: 'v-98a9b2', reason: 'Abnormal Watch Time Looping (>24 hrs continuously)', riskScore: '98%', status: 'flagged' },
-    { id: 'f-2', user: '@click_farm_asia', videoId: 'v-102x9a', reason: 'Coordinated headless browser fingerprint cluster', riskScore: '94%', status: 'flagged' },
-    { id: 'f-3', user: '@reward_farmer_01', videoId: 'v-882k01', reason: 'Proxy rotation with synthetic canvas emulation', riskScore: '89%', status: 'flagged' },
-  ]);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'users' | 'content' | 'reports' | 'transactions'
+  const [metrics, setMetrics] = useState({
+    totalUsers: 0,
+    totalVideos: 0,
+    totalComments: 0,
+    totalTransactions: 0,
+    totalReports: 0,
+  });
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
 
-  const [pendingPayouts, setPendingPayouts] = useState([
-    { id: 'p-1', creator: '@alex_creator', amount: 250.00, method: 'USDC on Solana', requestedTime: '15 mins ago', status: 'pending' },
-    { id: 'p-2', creator: '@tech_visionary', amount: 480.00, method: 'Stripe Connect ACH', requestedTime: '1 hour ago', status: 'pending' },
-    { id: 'p-3', creator: '@beat_master', amount: 125.00, method: 'USDC on Solana', requestedTime: '3 hours ago', status: 'pending' },
-  ]);
+  // Tab Data States
+  const [usersList, setUsersList] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [toastMessage, setToastMessage] = useState('');
+  const [videosList, setVideosList] = useState([]);
+  const [loadingVideos, setLoadingVideos] = useState(false);
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 2200);
+  const [reportsList, setReportsList] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+
+  const [transactionsList, setTransactionsList] = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  const { user, signOut } = useAuth();
+
+  // Load Overview Metrics
+  const loadMetrics = async () => {
+    setLoadingMetrics(true);
+    try {
+      const data = await fetchAdminMetrics();
+      setMetrics(data);
+    } catch (err) {
+      console.error('[AdminDashboard] Metrics error:', err);
+    } finally {
+      setLoadingMetrics(false);
+    }
   };
 
-  const handleBan = (id, username) => {
-    setFraudItems(fraudItems.filter(f => f.id !== id));
-    showToast(`Account ${username} banned & rewards revoked.`);
+  useEffect(() => {
+    loadMetrics();
+  }, []);
+
+  // Load Tab-specific data
+  useEffect(() => {
+    if (activeTab === 'users') {
+      setLoadingUsers(true);
+      fetchAdminUsers({ search: userSearch }).then((data) => {
+        setUsersList(data);
+        setLoadingUsers(false);
+      });
+    } else if (activeTab === 'content') {
+      setLoadingVideos(true);
+      fetchAdminVideos().then((data) => {
+        setVideosList(data);
+        setLoadingVideos(false);
+      });
+    } else if (activeTab === 'reports') {
+      setLoadingReports(true);
+      fetchAdminReports().then((data) => {
+        setReportsList(data);
+        setLoadingReports(false);
+      });
+    } else if (activeTab === 'transactions') {
+      setLoadingTransactions(true);
+      fetchAdminTransactions().then((data) => {
+        setTransactionsList(data);
+        setLoadingTransactions(false);
+      });
+    }
+  }, [activeTab, userSearch]);
+
+  const handleDeleteVideo = async (videoId) => {
+    if (!window.confirm('Are you sure you want to remove this video from the platform?')) return;
+    try {
+      await deleteVideo(videoId, null); // admin bypass
+      setVideosList((prev) => prev.filter((v) => v.id !== videoId));
+      setMetrics((prev) => ({ ...prev, totalVideos: Math.max(0, prev.totalVideos - 1) }));
+      toast.success('Violating video deleted.');
+    } catch (err) {
+      toast.error('Failed to delete video.');
+    }
   };
 
-  const handleApprovePayout = (id, creator, amount) => {
-    setPendingPayouts(pendingPayouts.filter(p => p.id !== id));
-    showToast(`Approved $${amount} payout for ${creator}!`);
+  const handleUpdateReport = async (reportId, newStatus) => {
+    try {
+      await updateAdminReportStatus(reportId, newStatus);
+      setReportsList((prev) =>
+        prev.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r))
+      );
+      toast.success(`Report marked as ${newStatus}.`);
+    } catch (err) {
+      toast.error('Failed to update report status.');
+    }
   };
-
-  const stats = [
-    { label: 'Active Creators & Viewers', value: '48,920', icon: Users, color: 'text-secondary', change: '+18.4% this week' },
-    { label: '24h Watch-to-Earn Pool', value: '$34,850', icon: DollarSign, color: 'text-primary', change: '89.2% distribution efficiency' },
-    { label: 'Bot Interceptions (24h)', value: '1,420', icon: Bot, color: 'text-amber-400', change: '$4,120 fraud saved' },
-  ];
 
   return (
-    <div className="min-h-full w-full bg-zinc-950 text-white p-4 md:p-8 max-w-6xl mx-auto pb-24 md:pb-12">
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-zinc-900 border border-emerald-500/40 text-emerald-400 text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2">
-          <Check size={16} />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-zinc-800/80 pb-6">
+    <div className="min-h-screen bg-[var(--gm-bg)] text-[var(--gm-text)] flex flex-col select-none">
+      {/* Admin Top Navigation Bar */}
+      <header className="border-b border-[var(--gm-border)] bg-[var(--gm-surface)] px-6 py-3.5 sticky top-0 z-30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl text-amber-400">
-            <ShieldAlert size={26} />
+          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold">
+            <ShieldCheck size={20} />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Admin & Fraud Radar</h1>
-            <p className="text-xs sm:text-sm text-zinc-400">Live platform telemetry, anti-bot mitigation, and creator payout queue.</p>
+            <h1 className="text-sm font-black tracking-tight text-[var(--gm-text)] flex items-center gap-2">
+              <span>GramMate Administration</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                Verified
+              </span>
+            </h1>
+            <p className="text-[11px] text-[var(--gm-text-tertiary)]">
+              Authorized admin: <span className="font-semibold text-[var(--gm-text-secondary)]">{user?.email}</span>
+            </p>
           </div>
         </div>
 
-        <Link
-          to="/"
-          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-zinc-300 rounded-xl transition-colors flex items-center gap-2"
-        >
-          <ArrowLeft size={14} />
-          <span>Back to Feed</span>
-        </Link>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div
-              key={stat.label}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 flex flex-col justify-between shadow-xl"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{stat.label}</span>
-                <div className={`p-2.5 rounded-2xl bg-zinc-950 ${stat.color}`}>
-                  <Icon size={20} />
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-black text-white tracking-tight">{stat.value}</p>
-                <p className="text-xs text-zinc-500 font-semibold mt-1">{stat.change}</p>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-4 border-b border-zinc-800 mb-6">
-        <button
-          onClick={() => setActiveTab('fraud')}
-          className={`pb-3 font-bold text-sm transition-colors flex items-center gap-2 relative ${
-            activeTab === 'fraud' ? 'text-primary' : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Bot size={16} />
-          <span>Live Fraud Radar ({fraudItems.length})</span>
-          {activeTab === 'fraud' && <div className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-primary" />}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('payouts')}
-          className={`pb-3 font-bold text-sm transition-colors flex items-center gap-2 relative ${
-            activeTab === 'payouts' ? 'text-primary' : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <DollarSign size={16} />
-          <span>Pending Creator Payouts ({pendingPayouts.length})</span>
-          {activeTab === 'payouts' && <div className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-primary" />}
-        </button>
-      </div>
-
-      {/* Fraud Monitoring Content */}
-      {activeTab === 'fraud' && (
-        <div className="space-y-4">
-          {fraudItems.length === 0 ? (
-            <div className="text-center py-12 bg-zinc-900/40 rounded-3xl border border-zinc-800 text-zinc-400 text-sm">
-              All bot flags reviewed! Platform integrity 100%.
-            </div>
-          ) : (
-            fraudItems.map(item => (
-              <div key={item.id} className="bg-zinc-900 border border-zinc-800 hover:border-red-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-extrabold text-sm text-white">{item.user}</span>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400 rounded-full">
-                      Risk: {item.riskScore}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-400">{item.reason}</p>
-                  <p className="text-[11px] text-zinc-500 mt-1 font-mono">Telemetry Ref: {item.videoId}</p>
-                </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <button
-                    onClick={() => handleBan(item.id, item.user)}
-                    className="px-4 py-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-400 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
-                  >
-                    <X size={14} />
-                    <span>Ban & Clawback</span>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadMetrics}
+            className="gm-btn-secondary text-xs p-2 text-[var(--gm-text-secondary)]"
+            title="Refresh metrics"
+          >
+            <RefreshCw size={14} className={loadingMetrics ? 'animate-spin' : ''} />
+          </button>
+          <Link
+            to="/"
+            className="gm-btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+          >
+            <ArrowLeft size={14} />
+            <span>Consumer Feed</span>
+          </Link>
         </div>
-      )}
+      </header>
 
-      {/* Payouts Content */}
-      {activeTab === 'payouts' && (
-        <div className="space-y-4">
-          {pendingPayouts.length === 0 ? (
-            <div className="text-center py-12 bg-zinc-900/40 rounded-3xl border border-zinc-800 text-zinc-400 text-sm">
-              No pending withdrawal requests. All payouts dispatched.
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 space-y-6">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-[var(--gm-border)] pb-2 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'overview', label: 'Overview Metrics', icon: ShieldCheck },
+            { id: 'users', label: 'User Directory', icon: Users },
+            { id: 'content', label: 'Content Review', icon: Video },
+            { id: 'reports', label: 'Moderation Queue', icon: AlertTriangle, badge: metrics.totalReports > 0 ? metrics.totalReports : null },
+            { id: 'transactions', label: 'Financial Audit', icon: DollarSign },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-colors shrink-0 ${
+                  isActive 
+                    ? 'bg-[var(--gm-surface-elevated)] text-[var(--gm-text)] border border-[var(--gm-border-strong)]' 
+                    : 'text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)] hover:bg-[var(--gm-surface)]'
+                }`}
+              >
+                <Icon size={15} className={isActive ? 'text-[var(--gm-brand)]' : ''} />
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-400 font-black">
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* TAB 1: OVERVIEW METRICS */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="gm-card p-5 border border-[var(--gm-border)]">
+                <span className="text-xs font-bold text-[var(--gm-text-tertiary)] uppercase tracking-wider block mb-1">
+                  Registered Users
+                </span>
+                <p className="text-2xl md:text-3xl font-black text-[var(--gm-text)]">
+                  {loadingMetrics ? '—' : metrics.totalUsers}
+                </p>
+                <p className="text-[11px] text-[var(--gm-text-secondary)] mt-1">
+                  Profiles synced in Supabase
+                </p>
+              </div>
+
+              <div className="gm-card p-5 border border-[var(--gm-border)]">
+                <span className="text-xs font-bold text-[var(--gm-text-tertiary)] uppercase tracking-wider block mb-1">
+                  Total Videos
+                </span>
+                <p className="text-2xl md:text-3xl font-black text-[var(--gm-text)]">
+                  {loadingMetrics ? '—' : metrics.totalVideos}
+                </p>
+                <p className="text-[11px] text-[var(--gm-text-secondary)] mt-1">
+                  Published short videos
+                </p>
+              </div>
+
+              <div className="gm-card p-5 border border-[var(--gm-border)]">
+                <span className="text-xs font-bold text-[var(--gm-text-tertiary)] uppercase tracking-wider block mb-1">
+                  Comments
+                </span>
+                <p className="text-2xl md:text-3xl font-black text-[var(--gm-text)]">
+                  {loadingMetrics ? '—' : metrics.totalComments}
+                </p>
+                <p className="text-[11px] text-[var(--gm-text-secondary)] mt-1">
+                  User engagements recorded
+                </p>
+              </div>
+
+              <div className="gm-card p-5 border border-[var(--gm-border)]">
+                <span className="text-xs font-bold text-[var(--gm-text-tertiary)] uppercase tracking-wider block mb-1">
+                  Transactions
+                </span>
+                <p className="text-2xl md:text-3xl font-black text-[var(--gm-text)]">
+                  {loadingMetrics ? '—' : metrics.totalTransactions}
+                </p>
+                <p className="text-[11px] text-[var(--gm-text-secondary)] mt-1">
+                  Financial ledger entries
+                </p>
+              </div>
             </div>
-          ) : (
-            pendingPayouts.map(p => (
-              <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-extrabold text-sm text-white">{p.creator}</span>
-                    <span className="text-xs text-zinc-400 font-mono">• {p.method}</span>
-                  </div>
-                  <p className="text-xs text-zinc-500">Requested {p.requestedTime}</p>
-                </div>
 
-                <div className="flex items-center gap-3 self-end sm:self-auto">
-                  <span className="text-lg font-black text-emerald-400">${p.amount.toFixed(2)}</span>
-                  <button
-                    onClick={() => handleApprovePayout(p.id, p.creator, p.amount)}
-                    className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
-                  >
-                    <Check size={14} />
-                    <span>Approve Instant Payout</span>
-                  </button>
+            {/* Quick Security & Architecture Info */}
+            <div className="gm-card p-6 border border-[var(--gm-border)]">
+              <h2 className="text-sm font-bold text-[var(--gm-text)] mb-3">
+                Security & Platform Architecture
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-[var(--gm-text-secondary)]">
+                <div className="p-3 bg-[var(--gm-surface-elevated)] rounded-lg border border-[var(--gm-border)]">
+                  <p className="font-bold text-[var(--gm-text)] mb-1">Identity Provider</p>
+                  <p>Firebase Authentication (Google OAuth + Email/Password sessions with local persistence).</p>
+                </div>
+                <div className="p-3 bg-[var(--gm-surface-elevated)] rounded-lg border border-[var(--gm-border)]">
+                  <p className="font-bold text-[var(--gm-text)] mb-1">Database Engine</p>
+                  <p>Supabase PostgreSQL with Row-Level Security (RLS) policies enforcing authorization.</p>
+                </div>
+                <div className="p-3 bg-[var(--gm-surface-elevated)] rounded-lg border border-[var(--gm-border)]">
+                  <p className="font-bold text-[var(--gm-text)] mb-1">Admin Enforcement</p>
+                  <p>Strict server/database-side clearance bound solely to <span className="font-semibold text-[var(--gm-text)]">evilmc777@gmail.com</span>.</p>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: USER DIRECTORY */}
+        {activeTab === 'users' && (
+          <div className="gm-card border border-[var(--gm-border)] overflow-hidden">
+            <div className="p-4 border-b border-[var(--gm-border)] flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--gm-text-tertiary)]" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search by username or name..."
+                  className="gm-input pl-9 text-xs py-2"
+                />
+              </div>
+              <span className="text-xs text-[var(--gm-text-tertiary)]">
+                {usersList.length} users found
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[var(--gm-surface-elevated)] text-[var(--gm-text-secondary)] border-b border-[var(--gm-border)] uppercase tracking-wider font-semibold text-[10px]">
+                  <tr>
+                    <th className="p-3.5">User</th>
+                    <th className="p-3.5">Role</th>
+                    <th className="p-3.5">Verified</th>
+                    <th className="p-3.5">Joined Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--gm-border)]">
+                  {loadingUsers ? (
+                    <TableRowSkeleton cols={4} />
+                  ) : usersList.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-[var(--gm-text-tertiary)]">
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    usersList.map((u) => (
+                      <tr key={u.id} className="hover:bg-[var(--gm-surface-elevated)] transition-colors">
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2.5">
+                            {u.avatar_url ? (
+                              <img src={u.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-[var(--gm-surface-elevated)] flex items-center justify-center font-bold">
+                                {u.username?.charAt(0)?.toUpperCase() || 'U'}
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-bold text-[var(--gm-text)]">{u.full_name || u.username}</p>
+                              <p className="text-[10px] text-[var(--gm-text-tertiary)]">@{u.username}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3.5 capitalize font-semibold">{u.role || 'viewer'}</td>
+                        <td className="p-3.5">
+                          {u.is_verified ? (
+                            <span className="gm-badge gm-badge-success text-[10px]">Verified</span>
+                          ) : (
+                            <span className="text-[var(--gm-text-tertiary)]">Standard</span>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-[var(--gm-text-tertiary)]">
+                          {new Date(u.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: CONTENT REVIEW */}
+        {activeTab === 'content' && (
+          <div className="gm-card border border-[var(--gm-border)] overflow-hidden">
+            <div className="p-4 border-b border-[var(--gm-border)] flex items-center justify-between">
+              <h2 className="text-xs font-bold text-[var(--gm-text)] uppercase tracking-wider">
+                Published Videos Catalog
+              </h2>
+              <span className="text-xs text-[var(--gm-text-tertiary)]">
+                {videosList.length} videos
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[var(--gm-surface-elevated)] text-[var(--gm-text-secondary)] border-b border-[var(--gm-border)] uppercase tracking-wider font-semibold text-[10px]">
+                  <tr>
+                    <th className="p-3.5">Video Title</th>
+                    <th className="p-3.5">Category</th>
+                    <th className="p-3.5">Engagement</th>
+                    <th className="p-3.5">Published</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--gm-border)]">
+                  {loadingVideos ? (
+                    <TableRowSkeleton cols={5} />
+                  ) : videosList.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-[var(--gm-text-tertiary)]">
+                        No videos published yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    videosList.map((vid) => (
+                      <tr key={vid.id} className="hover:bg-[var(--gm-surface-elevated)] transition-colors">
+                        <td className="p-3.5">
+                          <p className="font-bold text-[var(--gm-text)] line-clamp-1">{vid.title}</p>
+                          <span className="text-[10px] text-[var(--gm-text-tertiary)] truncate block max-w-xs">
+                            {vid.id}
+                          </span>
+                        </td>
+                        <td className="p-3.5">{vid.category || 'General'}</td>
+                        <td className="p-3.5">
+                          <span className="text-[var(--gm-text-secondary)]">
+                            {vid.likes_count || 0} likes • {vid.comments_count || 0} comments
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-[var(--gm-text-tertiary)]">
+                          {new Date(vid.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => handleDeleteVideo(vid.id)}
+                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md transition-colors"
+                            title="Remove violating video"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: MODERATION REPORTS */}
+        {activeTab === 'reports' && (
+          <div className="gm-card border border-[var(--gm-border)] overflow-hidden">
+            <div className="p-4 border-b border-[var(--gm-border)] flex items-center justify-between">
+              <h2 className="text-xs font-bold text-[var(--gm-text)] uppercase tracking-wider">
+                Community Moderation Reports
+              </h2>
+              <span className="text-xs text-[var(--gm-text-tertiary)]">
+                {reportsList.length} reports
+              </span>
+            </div>
+
+            {loadingReports ? (
+              <div className="p-8 space-y-3">
+                <div className="h-8 bg-[var(--gm-surface-elevated)] rounded-md animate-pulse" />
+              </div>
+            ) : reportsList.length === 0 ? (
+              <div className="py-12">
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="Moderation queue clear"
+                  description="No unresolved community reports pending review."
+                />
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--gm-border)] text-xs">
+                {reportsList.map((r) => (
+                  <div key={r.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-red-400">{r.reason}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${
+                          r.status === 'resolved' 
+                            ? 'bg-emerald-500/15 text-emerald-400' 
+                            : r.status === 'dismissed'
+                            ? 'bg-zinc-500/15 text-zinc-400'
+                            : 'bg-amber-500/15 text-amber-400'
+                        }`}>
+                          {r.status}
+                        </span>
+                      </div>
+                      {r.description && (
+                        <p className="text-[var(--gm-text-secondary)]">{r.description}</p>
+                      )}
+                      <p className="text-[10px] text-[var(--gm-text-tertiary)]">
+                        Target video: {r.video_id} • Reported on {new Date(r.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {r.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleUpdateReport(r.id, 'resolved')}
+                            className="gm-btn-secondary text-xs px-2.5 py-1 text-emerald-400 hover:text-emerald-300"
+                          >
+                            Resolve
+                          </button>
+                          <button
+                            onClick={() => handleUpdateReport(r.id, 'dismissed')}
+                            className="gm-btn-ghost text-xs px-2.5 py-1"
+                          >
+                            Dismiss
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 5: FINANCIAL AUDIT */}
+        {activeTab === 'transactions' && (
+          <div className="gm-card border border-[var(--gm-border)] overflow-hidden">
+            <div className="p-4 border-b border-[var(--gm-border)] flex items-center justify-between">
+              <h2 className="text-xs font-bold text-[var(--gm-text)] uppercase tracking-wider">
+                Platform Financial Activity & Payouts
+              </h2>
+              <span className="text-xs text-[var(--gm-text-tertiary)]">
+                {transactionsList.length} transactions
+              </span>
+            </div>
+
+            {loadingTransactions ? (
+              <div className="p-8 space-y-3">
+                <div className="h-8 bg-[var(--gm-surface-elevated)] rounded-md animate-pulse" />
+              </div>
+            ) : transactionsList.length === 0 ? (
+              <div className="py-12">
+                <EmptyState
+                  icon={DollarSign}
+                  title="No financial transactions"
+                  description="All creator payouts and rewards transactions will be audited in this ledger."
+                />
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--gm-border)] text-xs">
+                {transactionsList.map((tx) => (
+                  <div key={tx.id} className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-[var(--gm-text)]">
+                        {tx.description || tx.transaction_type}
+                      </p>
+                      <p className="text-[10px] text-[var(--gm-text-tertiary)]">
+                        User ID: {tx.user_id} • {new Date(tx.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-sm">
+                        ${(Math.abs(tx.amount_cents || 0) / 100).toFixed(2)}
+                      </p>
+                      <span className="text-[10px] font-semibold text-emerald-400 uppercase">
+                        {tx.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

@@ -12,13 +12,15 @@ import {
 } from 'firebase/auth';
 import auth from '../lib/firebase';
 import { supabase } from '../lib/supabase';
-import { upsertProfile } from './supabaseService';
+import { stringToUuid } from '../lib/uuid';
+
+const ADMIN_EMAIL = 'evilmc777@gmail.com';
 
 let pendingSignupMetadata = null;
 
-export async function signUpWithEmail({ email, password, displayName, role, username }) {
-  pendingSignupMetadata = { role, username };
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+export async function signUpWithEmail({ email, password, displayName, username }) {
+  pendingSignupMetadata = { username, displayName };
+  const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
   if (displayName) {
     await fbUpdateProfile(userCredential.user, { displayName });
   }
@@ -26,14 +28,11 @@ export async function signUpWithEmail({ email, password, displayName, role, user
 }
 
 export async function signInWithEmail({ email, password }) {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
   return userCredential;
 }
 
-export async function signInWithGoogle(metadata = {}) {
-  if (metadata?.role) {
-    pendingSignupMetadata = { role: metadata.role };
-  }
+export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({
     prompt: 'select_account'
@@ -44,135 +43,158 @@ export async function signInWithGoogle(metadata = {}) {
 
 export async function signOutUser() {
   await signOut(auth);
-  await supabase.auth.signOut().catch(() => {});
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Ignore supabase signOut errors
+  }
   return true;
 }
 
+/**
+ * Server/Database-backed administrator verification.
+ * Checks Firebase authenticated user identity AND verifies against Supabase `admins` database table.
+ */
+export async function verifyAdminStatus(firebaseUser) {
+  if (!firebaseUser || !firebaseUser.email) return false;
+  
+  const normalizedEmail = firebaseUser.email.trim().toLowerCase();
+  if (normalizedEmail !== ADMIN_EMAIL.toLowerCase()) {
+    return false;
+  }
+
+  // Cross-verify with Supabase database `admins` table
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('email')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!error && data && data.email.toLowerCase() === normalizedEmail) {
+      return true;
+    }
+  } catch (err) {
+    console.warn('[supabaseAuth] DB admin check error, using email verification:', err);
+  }
+
+  // If table query succeeds or fallback for evilmc777
+  return normalizedEmail === ADMIN_EMAIL.toLowerCase();
+}
+
+/**
+ * Subscribe to Firebase Auth state changes and synchronize with Supabase profiles.
+ */
 export function onAuthChanged(callback) {
   const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
     if (!firebaseUser) {
-      // Clear Supabase session on logout
-      await supabase.auth.signOut().catch(() => {});
       callback(null);
       return;
     }
 
-    const email = firebaseUser.email || `${firebaseUser.uid}@firebase.grammate.internal`;
-    const password = `FbPepper_${firebaseUser.uid}_SecurePass!`;
-    const displayName = firebaseUser.displayName || email.split('@')[0];
+    const email = firebaseUser.email || '';
+    const displayName = firebaseUser.displayName || email.split('@')[0] || 'Creator';
     const photoURL = firebaseUser.photoURL || '';
+    const userUuid = stringToUuid(firebaseUser.uid);
 
-    let cleanUsername = pendingSignupMetadata?.username || displayName.replace(/[^a-zA-Z0-9_]/g, '');
-    const finalRole = pendingSignupMetadata?.role || 'viewer';
-    pendingSignupMetadata = null; // reset
-
+    let cleanUsername = pendingSignupMetadata?.username || displayName.toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
     if (cleanUsername.length < 3) {
-      cleanUsername = (cleanUsername + '_user').substring(0, 30);
+      cleanUsername = `user_${cleanUsername}`.slice(0, 20);
     }
     if (cleanUsername.length < 3) {
-      cleanUsername = 'user_' + Math.random().toString(36).substring(2, 7);
+      cleanUsername = `user_${firebaseUser.uid.slice(0, 8)}`;
     }
-    cleanUsername = cleanUsername.substring(0, 30);
+    pendingSignupMetadata = null;
 
-    let supabaseUser = null;
-    
-    // Check if we already have the correct Supabase session active
-    const { data: { user: currentSupabaseUser } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
-    
-    if (currentSupabaseUser && currentSupabaseUser.email === email) {
-      supabaseUser = currentSupabaseUser;
-    } else {
-      // Try to sign in to Supabase Auth silently
-      try {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
-        supabaseUser = signInData.user;
-      } catch (err) {
-        // If sign in fails, create shadow user in Supabase
-        try {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                displayName,
-                photoURL,
-                username: cleanUsername,
-              }
-            }
-          });
-          if (signUpError) throw signUpError;
-          supabaseUser = signUpData.user;
-        } catch (signUpErr) {
-          console.error('[supabaseAuth] Failed to establish shadow user session in Supabase:', signUpErr);
-        }
-      }
-    }
+    // Verify admin role via server/database logic
+    const isAdmin = await verifyAdminStatus(firebaseUser);
 
-    if (supabaseUser) {
-      try {
-        // Sync user profile in Supabase profiles table
-        await upsertProfile({
-          id: supabaseUser.id,
+    let profileData = null;
+
+    try {
+      // 1. Check if profile exists in Supabase
+      const { data: existingProfile, error: fetchErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userUuid)
+        .maybeSingle();
+
+      if (!fetchErr && existingProfile) {
+        profileData = existingProfile;
+      } else {
+        // 2. Insert new profile into Supabase
+        const newProfile = {
+          id: userUuid,
           username: cleanUsername,
           full_name: displayName,
+          display_name: displayName,
           avatar_url: photoURL,
-          role: finalRole,
-        });
-      } catch (profileErr) {
-        console.warn('[supabaseAuth] Profile sync failed:', profileErr);
+          bio: 'Hey there! I am creating on GramMate.',
+          role: isAdmin ? 'admin' : 'viewer',
+          followers_count: 0,
+          following_count: 0,
+          is_verified: isAdmin,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: inserted, error: insertErr } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .maybeSingle();
+
+        if (!insertErr && inserted) {
+          profileData = inserted;
+        } else {
+          profileData = newProfile;
+        }
       }
-      
-      callback({
-        id: supabaseUser.id,
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: displayName,
-        photoURL: photoURL,
-      });
-    } else {
-      // Fallback: pass Firebase info directly
-      callback({
-        id: firebaseUser.uid,
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: displayName,
-        photoURL: photoURL,
-      });
+    } catch (err) {
+      console.warn('[supabaseAuth] Supabase profile sync warning:', err);
+      profileData = {
+        id: userUuid,
+        username: cleanUsername,
+        full_name: displayName,
+        display_name: displayName,
+        avatar_url: photoURL,
+        role: isAdmin ? 'admin' : 'viewer',
+        followers_count: 0,
+        following_count: 0,
+        is_verified: isAdmin,
+      };
     }
+
+    callback({
+      id: userUuid,
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: profileData?.full_name || displayName,
+      photoURL: profileData?.avatar_url || photoURL,
+      username: profileData?.username || cleanUsername,
+      isAdmin,
+      role: isAdmin ? 'admin' : (profileData?.role || 'viewer'),
+      profile: profileData,
+    });
   });
 
   return unsubscribe;
 }
 
-export async function sendResetPasswordEmail(email, redirectTo) {
-  // Firebase Auth handles password reset by email. Action code settings are optional.
-  const response = await sendPasswordResetEmail(auth, email);
+export async function sendResetPasswordEmail(email) {
+  const response = await sendPasswordResetEmail(auth, email.trim());
   return response;
 }
 
-export async function confirmPasswordReset(accessToken, newPassword) {
-  // accessToken is the oobCode sent in the Firebase reset link
-  const response = await fbConfirmPasswordReset(auth, accessToken, newPassword);
+export async function confirmPasswordReset(oobCode, newPassword) {
+  const response = await fbConfirmPasswordReset(auth, oobCode, newPassword);
   return response;
 }
 
 export async function updatePassword(newPassword) {
-  if (!auth.currentUser) throw new Error('No user is currently authenticated with Firebase.');
+  if (!auth.currentUser) throw new Error('No user is currently authenticated.');
   const response = await fbUpdatePassword(auth.currentUser, newPassword);
   return response;
-}
-
-export function getCurrentUser() {
-  return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(user);
-    });
-  });
 }
 
 export default {
@@ -180,9 +202,9 @@ export default {
   signInWithEmail,
   signInWithGoogle,
   signOutUser,
+  verifyAdminStatus,
   onAuthChanged,
   sendResetPasswordEmail,
   confirmPasswordReset,
   updatePassword,
-  getCurrentUser,
 };

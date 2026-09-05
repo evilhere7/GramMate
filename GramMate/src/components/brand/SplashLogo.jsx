@@ -5,10 +5,9 @@ import Logo from './Logo';
 
 const LOADING_MESSAGES = [
   'Checking your session...',
-  'Loading creator tools...',
-  'Syncing wallet ledger...',
-  'Preparing reward controls...',
-  'Opening GramMate...',
+  'Syncing user profile...',
+  'Connecting to GramMate network...',
+  'Preparing your feed...',
 ];
 
 export default function SplashLogo({
@@ -34,57 +33,38 @@ export default function SplashLogo({
   }, [message]);
 
   const containerClasses = fullScreen
-    ? 'fixed inset-0 z-[9999] flex h-screen w-screen flex-col items-center justify-center overflow-hidden bg-white'
+    ? 'fixed inset-0 z-[9999] flex h-screen w-screen flex-col items-center justify-center overflow-hidden bg-[var(--gm-bg)] text-[var(--gm-text)]'
     : overlay
-      ? 'absolute inset-0 z-[90] flex h-full w-full flex-col items-center justify-center bg-white/90 backdrop-blur'
-      : 'flex w-full flex-col items-center justify-center py-12';
+      ? 'absolute inset-0 z-[90] flex h-full w-full flex-col items-center justify-center bg-[var(--gm-surface-overlay)] backdrop-blur-xs text-[var(--gm-text)]'
+      : 'flex w-full flex-col items-center justify-center py-12 text-[var(--gm-text)]';
 
   return (
     <div className={containerClasses}>
       <div className="relative z-10 flex flex-col items-center">
-        <motion.div
-          animate={{ opacity: [0.92, 1, 0.92] }}
-          transition={{
-            duration: 2.2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          className="mb-8"
-        >
-          <Logo size={fullScreen ? 'xl' : 'lg'} layout="vertical" tagline={false} hoverGlow={false} />
-        </motion.div>
+        <div className="mb-6">
+          <Logo size={fullScreen ? 'lg' : 'md'} layout="vertical" tagline={false} />
+        </div>
 
-        <div className="mt-4 flex max-w-xs flex-col items-center text-center">
-          <motion.span
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-4 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 md:text-xs"
-          >
+        <div className="mt-2 flex max-w-xs flex-col items-center text-center">
+          <span className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--gm-text-tertiary)]">
             Watch. Create. Earn.
-          </motion.span>
+          </span>
 
-          <div className="relative mb-4 h-1 w-48 overflow-hidden rounded-full bg-slate-200">
+          <div className="relative mb-4 h-1 w-44 overflow-hidden rounded-full bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)]">
             <motion.div
               animate={{ left: ['-100%', '100%'] }}
               transition={{
-                duration: 1.5,
+                duration: 1.4,
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
-              className="absolute bottom-0 top-0 w-1/2 rounded-full bg-blue-600"
+              className="absolute bottom-0 top-0 w-1/2 rounded-full bg-[var(--gm-brand)]"
             />
           </div>
 
-          <motion.p
-            key={displayMessage}
-            initial={{ opacity: 0, y: 3 }}
-            animate={{ opacity: 0.8, y: 0 }}
-            exit={{ opacity: 0, y: -3 }}
-            className="text-xs font-medium tracking-wide text-slate-500"
-          >
+          <p className="text-xs font-medium text-[var(--gm-text-secondary)]">
             {displayMessage}
-          </motion.p>
+          </p>
         </div>
       </div>
     </div>

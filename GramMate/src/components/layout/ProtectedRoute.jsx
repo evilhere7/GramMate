@@ -1,33 +1,37 @@
-import { Navigate } from 'react-router-dom';
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import SplashLogo from '../../components/brand/SplashLogo';
-import useProfile from '../../hooks/useProfile';
 
-export default function ProtectedRoute({ children, requireAuth = true, requireCreator = false, requireAdmin = false }) {
-  const { isAuthenticated, loading, user } = useAuth();
-  const { loading: profileLoading, isCreator } = useProfile();
+export default function ProtectedRoute({ 
+  children, 
+  requireAuth = true, 
+  requireAdmin = false,
+  publicOnly = false 
+}) {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+  const location = useLocation();
 
-  if (loading || (requireAuth && requireCreator && profileLoading)) {
+  if (loading) {
     return <SplashLogo fullScreen />;
   }
 
-  if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!requireAuth && isAuthenticated) {
-    // If it's a public only route (like login) and user is authenticated, send to feed
+  // If page is for non-logged in users only (e.g. /login)
+  if (publicOnly && isAuthenticated) {
+    if (isAdmin) {
+      return <Navigate to="/admin" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
-  if (requireAuth && requireAdmin) {
-    if (user?.email !== 'evilmc777@gmail.com') {
-      return <Navigate to="/403" replace />;
-    }
+  // If page requires login
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requireAuth && requireCreator && !isCreator) {
-    return <Navigate to="/profile/me" replace />;
+  // If page requires admin privileges
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/403" replace />;
   }
 
   return children;

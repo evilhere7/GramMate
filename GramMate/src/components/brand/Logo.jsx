@@ -12,17 +12,18 @@ export const LogoIcon = ({ className = '', size = 40 }) => {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#7C3AED" />
-          <stop offset="100%" stopColor="#06B6D4" />
+        <linearGradient id="gmLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#2563EB" />
+          <stop offset="100%" stopColor="#0EA5E9" />
         </linearGradient>
       </defs>
-      <rect x="10" y="10" width="80" height="80" rx="18" fill="url(#logoGradient)" />
+      <rect x="8" y="8" width="84" height="84" rx="20" fill="url(#gmLogoGradient)" />
+      {/* Sleek play triangle intersecting an aperture / GM motif */}
       <path
-        d="M64 34.5C59.8 30.8 54.8 29 49 29C37.4 29 28 38.4 28 50C28 61.6 37.4 71 49 71C58.9 71 67.2 64.1 69.4 54.8H51.5V44.6H81V50C81 68.2 67.1 82 49 82C31 82 17 68 17 50C17 32 31 18 49 18C58 18 65.6 21.1 71.8 26.8L64 34.5Z"
+        d="M62 35C58 31 53 29 47 29C35.5 29 26 38.5 26 50C26 61.5 35.5 71 47 71C56.5 71 64.5 64.5 66.8 55.5H49.5V45.5H78V50C78 67.5 64.5 81 47 81C29.5 81 16 67.5 16 50C16 32.5 29.5 19 47 19C55.5 19 63 22 69 27.5L62 35Z"
         fill="#FFFFFF"
       />
-      <path d="M47 42L62 50L47 58V42Z" fill="rgba(255,255,255,0.9)" />
+      <path d="M48 42L63 50L48 58V42Z" fill="#FFFFFF" />
     </svg>
   );
 };
@@ -36,16 +37,15 @@ export default function Logo({
   size = 'md',
   layout = 'horizontal',
   tagline = true,
-  hoverGlow = false,
   className = '',
 }) {
   const sizeMap = {
     xs: { icon: 20, text: 'text-sm', tag: 'text-[8px]', spacing: 'gap-1.5' },
     sm: { icon: 28, text: 'text-lg', tag: 'text-[9px]', spacing: 'gap-2' },
-    md: { icon: 40, text: 'text-2xl', tag: 'text-[10px]', spacing: 'gap-3' },
-    lg: { icon: 52, text: 'text-3xl', tag: 'text-[12px]', spacing: 'gap-3.5' },
-    xl: { icon: 68, text: 'text-4xl', tag: 'text-[14px]', spacing: 'gap-4' },
-    '2xl': { icon: 88, text: 'text-5xl', tag: 'text-[16px]', spacing: 'gap-5' },
+    md: { icon: 36, text: 'text-xl', tag: 'text-[10px]', spacing: 'gap-2.5' },
+    lg: { icon: 48, text: 'text-2xl', tag: 'text-[11px]', spacing: 'gap-3' },
+    xl: { icon: 60, text: 'text-3xl', tag: 'text-[13px]', spacing: 'gap-3.5' },
+    '2xl': { icon: 76, text: 'text-4xl', tag: 'text-[15px]', spacing: 'gap-4' },
   };
 
   const currentSize = sizeMap[size] || sizeMap.md;
@@ -54,17 +54,15 @@ export default function Logo({
     <div
       className={`flex ${
         layout === 'vertical' ? 'flex-col items-center text-center' : 'items-center text-left'
-      } ${currentSize.spacing} ${
-        hoverGlow ? 'transition-transform duration-300 hover:scale-[1.02]' : ''
-      } ${className}`}
+      } ${currentSize.spacing} select-none ${className}`}
     >
       <LogoIcon size={currentSize.icon} />
       <div className="flex flex-col">
-        <h1 className={`${currentSize.text} font-extrabold leading-none tracking-tight text-[var(--gm-text)]`}>
-          GramMate
+        <h1 className={`${currentSize.text} font-black tracking-tight text-[var(--gm-text)]`}>
+          Gram<span className="text-[var(--gm-brand)]">Mate</span>
         </h1>
         {tagline && (
-          <p className={`${currentSize.tag} mt-1 font-bold uppercase leading-none tracking-[0.14em] text-[var(--gm-text-tertiary)]`}>
+          <p className={`${currentSize.tag} mt-0.5 font-bold uppercase tracking-wider text-[var(--gm-text-tertiary)]`}>
             Watch. Create. Earn.
           </p>
         )}
@@ -77,6 +75,5 @@ Logo.propTypes = {
   size: PropTypes.oneOf(['xs', 'sm', 'md', 'lg', 'xl', '2xl']),
   layout: PropTypes.oneOf(['horizontal', 'vertical']),
   tagline: PropTypes.bool,
-  hoverGlow: PropTypes.bool,
   className: PropTypes.string,
 };

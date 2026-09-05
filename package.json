@@ -2,11 +2,15 @@
   "name": "grammate-root",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["frontend"],
+  "workspaces": [
+    "GramMate",
+    "frontend"
+  ],
   "scripts": {
-    "dev": "npm start --prefix frontend",
-    "build": "npm run build --prefix frontend",
-    "start": "npm start --prefix frontend",
-    "lint": "npm run lint --prefix frontend"
+    "dev": "npm run dev --prefix GramMate",
+    "build": "npm run build --prefix GramMate",
+    "preview": "npm run preview --prefix GramMate",
+    "dev:frontend": "npm start --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend"
   }
 }

@@ -1,628 +1,578 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Heart, 
   MessageCircle, 
   Share2, 
-  DollarSign, 
   Volume2, 
   VolumeX, 
   Play, 
-  Gift, 
-  Check, 
+  Pause,
+  AlertTriangle, 
   Send, 
   X, 
-  Sparkles, 
-  Music2, 
-  UserPlus, 
-  UserCheck 
+  Trash2,
+  Check,
+  Video
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-const DUMMY_VIDEOS = [
-  {
-    id: '1',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    author: 'alex_creator',
-    authorName: 'Alex Rivera',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    description: 'Capturing the golden hour vibes in Tokyo! 🌅 Which shot is your favorite? #Tokyo #Cinematic #WatchToEarn',
-    songTitle: 'Lost in Shibuya - Synthwave Beats',
-    likesCount: 14200,
-    commentsCount: 384,
-    sharesCount: 1200,
-    rewardRate: 0.04, // $0.04 per min
-    isVerified: true,
-    tags: ['#Tokyo', '#Cinematic', '#WatchToEarn', '#GramMate']
-  },
-  {
-    id: '2',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    author: 'tech_visionary',
-    authorName: 'Elena Rostova',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    description: 'AI tools you need in 2026 to automate your entire workflow 🚀 Let me know in the comments!',
-    songTitle: 'Futuristic AI Horizon - TechSound',
-    likesCount: 28500,
-    commentsCount: 1240,
-    sharesCount: 4500,
-    rewardRate: 0.06,
-    isVerified: true,
-    tags: ['#AI', '#Productivity', '#FutureTech']
-  },
-  {
-    id: '3',
-    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    author: 'beat_master',
-    authorName: 'Marcus Cole',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-    description: 'Dropping a fresh beat live in the studio! 🎧 Turn up the bass and feel the groove! #GramMateVibes',
-    songTitle: 'Original Audio - Marcus Cole',
-    likesCount: 9300,
-    commentsCount: 215,
-    sharesCount: 890,
-    rewardRate: 0.035,
-    isVerified: false,
-    tags: ['#Music', '#Beats', '#StudioLive']
-  }
-];
-
-// Floating Watch-To-Earn Real-time Counter
-const WatchToEarnBadge = ({ rewardRate, isActive }) => {
-  const [earned, setEarned] = useState(0.0025);
-  const [pulseKey, setPulseKey] = useState(0);
-
-  useEffect(() => {
-    let interval;
-    if (isActive) {
-      interval = setInterval(() => {
-        setEarned(prev => {
-          const increment = rewardRate / 60;
-          return prev + increment;
-        });
-        setPulseKey(p => p + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isActive, rewardRate]);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="absolute top-5 left-4 md:left-6 z-30 flex items-center gap-2.5 bg-black/60 backdrop-blur-xl border border-primary/40 px-3.5 py-1.5 rounded-full shadow-[0_0_20px_rgba(255,46,99,0.35)]"
-    >
-      <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-tr from-primary to-rose-400 text-white shadow-sm">
-        <DollarSign size={14} className="stroke-[3]" />
-        <motion.span 
-          key={pulseKey}
-          initial={{ scale: 1.4, opacity: 0.8 }}
-          animate={{ scale: 2, opacity: 0 }}
-          transition={{ duration: 0.6 }}
-          className="absolute inset-0 rounded-full bg-primary"
-        />
-      </div>
-      <div className="flex flex-col">
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] font-bold tracking-wider text-secondary uppercase">EARNING LIVE</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-        </div>
-        <span className="text-sm font-extrabold text-white tracking-tight leading-none">
-          +${earned.toFixed(4)}
-        </span>
-      </div>
-    </motion.div>
-  );
-};
-
-// Comments Modal Drawer
-const CommentsDrawer = ({ isOpen, onClose, videoId, commentsCount }) => {
-  const [comments, setComments] = useState([
-    { id: 1, user: 'cyber_voyager', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100', text: 'This visual quality is unmatched! Keep creating 🔥', time: '2m ago', likes: 18 },
-    { id: 2, user: 'sarah_creator', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', text: 'The watch-to-earn feature on GramMate is revolutionary!', time: '12m ago', likes: 45 },
-    { id: 3, user: 'dev_guru', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100', text: 'Where did you get that sound track? Added to my favorites!', time: '1h ago', likes: 7 },
-  ]);
-  const [newComment, setNewComment] = useState('');
-
-  const handleAddComment = (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    setComments([
-      {
-        id: Date.now(),
-        user: 'you (creator)',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
-        text: newComment,
-        time: 'Just now',
-        likes: 0
-      },
-      ...comments
-    ]);
-    setNewComment('');
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-end items-end md:items-center md:justify-center p-0 md:p-4"
-      >
-        <motion.div 
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full md:max-w-md bg-zinc-950 border border-zinc-800 rounded-t-3xl md:rounded-3xl p-5 max-h-[80vh] flex flex-col shadow-2xl"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <MessageCircle size={18} className="text-primary" />
-              <span>Comments ({comments.length})</span>
-            </h3>
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
-              <X size={20} />
-            </button>
-          </div>
-
-          {/* Comment List */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 no-scrollbar">
-            {comments.map((c) => (
-              <div key={c.id} className="flex items-start gap-3 group">
-                <img src={c.avatar} alt={c.user} className="w-8 h-8 rounded-full object-cover border border-zinc-700 mt-1" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-zinc-300">@{c.user}</span>
-                    <span className="text-[11px] text-zinc-500">{c.time}</span>
-                  </div>
-                  <p className="text-sm text-zinc-200 mt-0.5 leading-snug">{c.text}</p>
-                </div>
-                <button className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-primary transition-colors mt-1">
-                  <Heart size={14} />
-                  <span className="text-[10px]">{c.likes}</span>
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Input Form */}
-          <form onSubmit={handleAddComment} className="pt-3 border-t border-zinc-800 flex items-center gap-2">
-            <input 
-              type="text"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment on GramMate..."
-              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary transition-colors placeholder:text-zinc-500"
-            />
-            <button 
-              type="submit"
-              disabled={!newComment.trim()}
-              className="p-2.5 bg-primary disabled:opacity-40 hover:bg-primary/90 text-white rounded-full transition-all"
-            >
-              <Send size={16} />
-            </button>
-          </form>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-};
-
-// Creator Tipping Modal
-const TipModal = ({ isOpen, onClose, creatorName }) => {
-  const [selectedAmount, setSelectedAmount] = useState('1.00');
-  const [customAmount, setCustomAmount] = useState('');
-  const [tipped, setTipped] = useState(false);
-
-  const amounts = ['0.50', '1.00', '2.00', '5.00', '10.00'];
-
-  const handleTip = () => {
-    setTipped(true);
-    setTimeout(() => {
-      setTipped(false);
-      onClose();
-    }, 1800);
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4"
-      >
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-sm bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 rounded-3xl p-6 text-center relative overflow-hidden shadow-2xl"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl pointer-events-none" />
-          
-          <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white">
-            <X size={18} />
-          </button>
-
-          {tipped ? (
-            <div className="py-8 flex flex-col items-center">
-              <motion.div 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', damping: 12 }}
-                className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 border border-emerald-500/40"
-              >
-                <Check size={32} className="stroke-[3]" />
-              </motion.div>
-              <h3 className="text-xl font-bold text-white mb-1">Tip Sent!</h3>
-              <p className="text-sm text-zinc-400">You supported @{creatorName} with ${customAmount || selectedAmount} USDC</p>
-            </div>
-          ) : (
-            <>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/30 to-secondary/30 text-primary mx-auto flex items-center justify-center mb-4 border border-primary/30">
-                <Gift size={28} />
-              </div>
-
-              <h3 className="text-xl font-bold text-white mb-1">Tip @{creatorName}</h3>
-              <p className="text-xs text-zinc-400 mb-6">Send instant crypto or fiat reward to support their creations.</p>
-
-              {/* Amount Pills */}
-              <div className="grid grid-cols-3 gap-2.5 mb-4">
-                {amounts.map(amt => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => { setSelectedAmount(amt); setCustomAmount(''); }}
-                    className={`py-2 rounded-xl text-sm font-bold border transition-all ${
-                      selectedAmount === amt && !customAmount
-                        ? 'bg-primary border-primary text-white shadow-lg shadow-primary/30'
-                        : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                    }`}
-                  >
-                    ${amt}
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Input */}
-              <div className="relative mb-6">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">$</span>
-                <input 
-                  type="number"
-                  value={customAmount}
-                  onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(''); }}
-                  placeholder="Custom amount"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-8 pr-4 text-sm text-white focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              <button
-                onClick={handleTip}
-                className="w-full py-3.5 bg-gradient-to-r from-primary to-rose-500 hover:from-primary/90 hover:to-rose-500/90 text-white font-bold rounded-xl shadow-lg shadow-primary/25 transition-all flex items-center justify-center gap-2"
-              >
-                <Sparkles size={16} />
-                <span>Send Tip (${customAmount || selectedAmount})</span>
-              </button>
-            </>
-          )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-};
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../contexts/AuthContext';
+import { 
+  fetchFeedVideos, 
+  hasUserLiked, 
+  toggleLike, 
+  fetchComments, 
+  addComment, 
+  submitReport,
+  deleteVideo 
+} from '../../services/supabaseService';
+import { VideoFeedSkeleton } from '../../components/ui/Skeleton';
+import EmptyState from '../../components/ui/EmptyState';
+import Modal from '../../components/ui/Modal';
 
 export default function VideoFeed({ isDiscoverMode = false }) {
-  const [activeVideo, setActiveVideo] = useState(0);
-  const [isMuted, setIsMuted] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [likes, setLikes] = useState({ 1: 14200, 2: 28500, 3: 9300 });
-  const [likedMap, setLikedMap] = useState({});
-  const [followingMap, setFollowingMap] = useState({});
-  const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
-  const [tipModalOpen, setTipModalOpen] = useState(false);
-  const [activeCreator, setActiveCreator] = useState('alex_creator');
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [muted, setMuted] = useState(true);
+  
+  // Interaction drawers / modals
+  const [activeCommentVideo, setActiveCommentVideo] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
+  
+  // Report Modal
+  const [reportVideo, setReportVideo] = useState(null);
+  const [reportReason, setReportReason] = useState('Inappropriate Content');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reporting, setReporting] = useState(false);
 
-  const videoRefs = useRef([]);
+  const { user, isAuthenticated, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
-  const currentVideo = DUMMY_VIDEOS[activeVideo] || DUMMY_VIDEOS[0];
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchFeedVideos({ limit: 25 });
+      setVideos(data);
+    } catch (err) {
+      console.error('[VideoFeed] Load error:', err);
+      setError('Could not load videos. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const triggerToast = (msg) => {
-    setToastMessage(msg);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2200);
-  };
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
 
-  const togglePlay = (index) => {
-    const video = videoRefs.current[index];
-    if (!video) return;
-    if (video.paused) {
-      video.play();
-      setIsPlaying(true);
-    } else {
-      video.pause();
-      setIsPlaying(false);
+  // Handle Comment Drawer
+  const openComments = async (video) => {
+    setActiveCommentVideo(video);
+    setCommentLoading(true);
+    try {
+      const list = await fetchComments(video.id);
+      setComments(list);
+    } catch (err) {
+      console.warn('[VideoFeed] Comments error:', err);
+    } finally {
+      setCommentLoading(false);
     }
   };
 
-  const toggleLike = (id) => {
-    const isLiked = likedMap[id];
-    setLikedMap(prev => ({ ...prev, [id]: !isLiked }));
-    setLikes(prev => ({
-      ...prev,
-      [id]: isLiked ? prev[id] - 1 : prev[id] + 1
-    }));
+  const handlePostComment = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      toast.info('Please sign in to comment.');
+      navigate('/login');
+      return;
+    }
+    if (!newCommentText.trim() || !activeCommentVideo) return;
+
+    try {
+      const inserted = await addComment(activeCommentVideo.id, user.id, newCommentText);
+      setComments((prev) => [
+        {
+          ...inserted,
+          author: {
+            username: user.username,
+            full_name: user.displayName,
+            avatar_url: user.photoURL,
+          }
+        },
+        ...prev
+      ]);
+      setNewCommentText('');
+      // Optimistically update comments count in feed
+      setVideos((prev) =>
+        prev.map((v) => (v.id === activeCommentVideo.id ? { ...v, comments_count: (v.comments_count || 0) + 1 } : v))
+      );
+    } catch (err) {
+      toast.error(err.message || 'Failed to post comment.');
+    }
   };
 
-  const toggleFollow = (author) => {
-    const isFollowing = followingMap[author];
-    setFollowingMap(prev => ({ ...prev, [author]: !isFollowing }));
-    triggerToast(isFollowing ? `Unfollowed @${author}` : `Now following @${author}!`);
+  // Handle Share
+  const handleShare = async (video) => {
+    const url = `${window.location.origin}/video/${video.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: video.title,
+          text: video.description || 'Check out this video on GramMate!',
+          url,
+        });
+      } catch {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard!');
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard!');
+    }
   };
 
-  const handleShare = () => {
-    navigator.clipboard?.writeText?.(window.location.href);
-    triggerToast('Link copied to clipboard! 🔗');
+  // Handle Report
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    if (!reportVideo) return;
+    setReporting(true);
+    try {
+      await submitReport({
+        videoId: reportVideo.id,
+        reporterId: user?.id,
+        reason: reportReason,
+        description: reportDescription,
+      });
+      toast.success('Report submitted for moderation review.');
+      setReportVideo(null);
+      setReportDescription('');
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit report.');
+    } finally {
+      setReporting(false);
+    }
   };
 
-  // Intersection Observer for seamless auto-play on scroll
+  // Handle Delete (owner or admin)
+  const handleDeleteVideo = async (videoId) => {
+    if (!window.confirm('Are you sure you want to delete this video?')) return;
+    try {
+      await deleteVideo(videoId, isAdmin ? null : user?.id);
+      setVideos((prev) => prev.filter((v) => v.id !== videoId));
+      toast.success('Video removed.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete video.');
+    }
+  };
+
+  if (loading) {
+    return <VideoFeedSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <p className="text-sm text-red-400 mb-4">{error}</p>
+        <button onClick={loadFeed} className="gm-btn-secondary text-xs px-4 py-2">
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (videos.length === 0) {
+    return (
+      <div className="py-20">
+        <EmptyState
+          icon={Video}
+          title="No videos yet"
+          description="Be the first creator to upload a video on GramMate and start building your audience."
+          actionLabel="Upload First Video"
+          onAction={() => navigate('/upload')}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-lg mx-auto py-6 px-3 md:px-0 space-y-8 pb-24">
+      {videos.map((video) => (
+        <FeedItem
+          key={video.id}
+          video={video}
+          muted={muted}
+          onToggleMute={() => setMuted(!muted)}
+          onOpenComments={() => openComments(video)}
+          onShare={() => handleShare(video)}
+          onReport={() => setReportVideo(video)}
+          onDelete={() => handleDeleteVideo(video.id)}
+          currentUserId={user?.id}
+          isAdmin={isAdmin}
+          isAuthenticated={isAuthenticated}
+        />
+      ))}
+
+      {/* Comments Sliding Drawer / Modal */}
+      <Modal
+        isOpen={Boolean(activeCommentVideo)}
+        onClose={() => setActiveCommentVideo(null)}
+        title="Comments"
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col h-[400px]">
+          {/* Comments List */}
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            {commentLoading ? (
+              <div className="space-y-3 py-4">
+                <div className="h-10 bg-[var(--gm-surface-elevated)] rounded-md animate-pulse" />
+                <div className="h-10 bg-[var(--gm-surface-elevated)] rounded-md animate-pulse" />
+              </div>
+            ) : comments.length === 0 ? (
+              <p className="text-xs text-[var(--gm-text-tertiary)] text-center py-10">
+                No comments yet. Say something friendly!
+              </p>
+            ) : (
+              comments.map((c) => (
+                <div key={c.id} className="flex items-start gap-2.5 text-xs">
+                  {c.author?.avatar_url ? (
+                    <img 
+                      src={c.author.avatar_url} 
+                      alt="" 
+                      className="w-7 h-7 rounded-full object-cover shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-[var(--gm-surface-elevated)] flex items-center justify-center shrink-0 font-bold">
+                      {c.author?.username?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="font-bold text-[var(--gm-text)]">
+                        {c.author?.full_name || c.author?.username || 'User'}
+                      </span>
+                      <span className="text-[10px] text-[var(--gm-text-tertiary)]">
+                        @{c.author?.username || 'user'}
+                      </span>
+                    </div>
+                    <p className="text-[var(--gm-text-secondary)] leading-relaxed break-words">
+                      {c.content}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Comment Input */}
+          <form onSubmit={handlePostComment} className="pt-3 border-t border-[var(--gm-border)] flex items-center gap-2">
+            <input
+              type="text"
+              value={newCommentText}
+              onChange={(e) => setNewCommentText(e.target.value)}
+              placeholder={isAuthenticated ? 'Write a comment...' : 'Sign in to comment...'}
+              disabled={!isAuthenticated}
+              className="gm-input text-xs flex-1"
+            />
+            <button
+              type="submit"
+              disabled={!isAuthenticated || !newCommentText.trim()}
+              className="gm-btn-primary p-2 text-xs"
+            >
+              <Send size={15} />
+            </button>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal
+        isOpen={Boolean(reportVideo)}
+        onClose={() => setReportVideo(null)}
+        title="Report Content"
+      >
+        <form onSubmit={handleReportSubmit} className="space-y-4 text-xs">
+          <p className="text-[var(--gm-text-secondary)]">
+            Our moderation team reviews all flagged videos to maintain community standards.
+          </p>
+
+          <div>
+            <label className="block font-semibold mb-1">Reason for report</label>
+            <select
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              className="gm-input text-xs"
+            >
+              <option value="Inappropriate Content">Inappropriate Content</option>
+              <option value="Harassment or Hate">Harassment or Hate</option>
+              <option value="Spam or Misleading">Spam or Misleading</option>
+              <option value="Copyright Violation">Copyright Violation</option>
+              <option value="Dangerous Activity">Dangerous Activity</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold mb-1">Additional details (optional)</label>
+            <textarea
+              rows={3}
+              value={reportDescription}
+              onChange={(e) => setReportDescription(e.target.value)}
+              placeholder="Provide any relevant context..."
+              className="gm-input text-xs resize-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setReportVideo(null)}
+              className="gm-btn-ghost text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={reporting}
+              className="gm-btn-primary text-xs bg-red-600 hover:bg-red-700"
+            >
+              {reporting ? 'Submitting...' : 'Submit Report'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+function FeedItem({ 
+  video, 
+  muted, 
+  onToggleMute, 
+  onOpenComments, 
+  onShare, 
+  onReport, 
+  onDelete,
+  currentUserId,
+  isAdmin,
+  isAuthenticated
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(video.likes_count || 0);
+  const videoRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Check like state
+  useEffect(() => {
+    let isMounted = true;
+    if (currentUserId) {
+      hasUserLiked(video.id, currentUserId).then((res) => {
+        if (isMounted) setLiked(res);
+      });
+    }
+    return () => { isMounted = false; };
+  }, [video.id, currentUserId]);
+
+  // Autoplay on intersection
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const index = Number(entry.target.getAttribute('data-index'));
-            setActiveVideo(index);
+            videoRef.current?.play().catch(() => {});
             setIsPlaying(true);
-            videoRefs.current.forEach((vid, i) => {
-              if (vid) {
-                if (i === index) {
-                  vid.currentTime = 0;
-                  vid.play().catch(() => {});
-                } else {
-                  vid.pause();
-                }
-              }
-            });
+          } else {
+            videoRef.current?.pause();
+            setIsPlaying(false);
           }
         });
       },
       { threshold: 0.6 }
     );
 
-    const nodes = document.querySelectorAll('.video-card-container');
-    nodes.forEach((n) => observer.observe(n));
-
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
     return () => observer.disconnect();
   }, []);
 
+  const handleVideoClick = () => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  };
+
+  const handleLikeToggle = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please sign in to like videos.');
+      return;
+    }
+    const nextLiked = !liked;
+    setLiked(nextLiked);
+    setLikesCount((prev) => nextLiked ? prev + 1 : Math.max(0, prev - 1));
+    await toggleLike(video.id, currentUserId, liked);
+  };
+
+  const isOwner = currentUserId && currentUserId === video.user_id;
+
   return (
-    <div className="relative h-full w-full bg-black flex justify-center items-center overflow-hidden">
-      {/* Toast Notification */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-6 z-50 bg-zinc-900/90 border border-zinc-700 backdrop-blur-md px-5 py-2.5 rounded-full text-white text-sm font-medium shadow-2xl flex items-center gap-2"
-          >
-            <Sparkles size={16} className="text-primary" />
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Video Feed Scroller */}
-      <div className="h-full w-full max-w-lg snap-y snap-mandatory overflow-y-scroll no-scrollbar relative shadow-[0_0_50px_rgba(0,0,0,0.8)] border-x border-zinc-900">
-        {DUMMY_VIDEOS.map((video, index) => {
-          const isActive = index === activeVideo;
-          const isLiked = likedMap[video.id];
-          const isFollowing = followingMap[video.author];
-
-          return (
-            <div 
-              key={video.id} 
-              data-index={index}
-              className="video-card-container relative h-[calc(100vh-64px)] md:h-screen w-full snap-center bg-zinc-950 flex justify-center items-center select-none"
-            >
-              {/* Video Player */}
-              <video
-                ref={(el) => (videoRefs.current[index] = el)}
-                className="absolute inset-0 h-full w-full object-cover cursor-pointer"
-                src={video.url}
-                loop
-                muted={isMuted}
-                playsInline
-                onClick={() => togglePlay(index)}
-              />
-
-              {/* Top Bar Floating Earning Badge */}
-              <WatchToEarnBadge rewardRate={video.rewardRate} isActive={isActive && isPlaying} />
-
-              {/* Volume / Sound Toggle HUD */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMuted(!isMuted);
-                }}
-                className="absolute top-5 right-4 md:right-6 z-30 p-2.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white hover:bg-black/80 transition-transform active:scale-90"
-              >
-                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} className="text-secondary" />}
-              </button>
-
-              {/* Play / Pause indicator overlay on tap */}
-              <AnimatePresence>
-                {!isPlaying && isActive && (
-                  <motion.div 
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 0.9 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
-                    className="absolute z-20 pointer-events-none p-5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white"
-                  >
-                    <Play size={36} className="fill-white translate-x-0.5" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Gradient Vignettes */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
-
-              {/* Bottom Video Metadata & Author */}
-              <div className="absolute bottom-6 left-4 md:left-6 right-20 z-20">
-                {/* Author Info */}
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <Link to={`/profile/${video.author}`} className="relative group">
-                    <img 
-                      src={video.avatar} 
-                      alt={video.author} 
-                      className="w-10 h-10 rounded-full object-cover border-2 border-primary group-hover:scale-105 transition-transform"
-                    />
-                  </Link>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5">
-                      <Link to={`/profile/${video.author}`} className="text-white font-bold text-sm hover:underline">
-                        @{video.author}
-                      </Link>
-                      {video.isVerified && (
-                        <span className="w-3.5 h-3.5 rounded-full bg-secondary text-black text-[9px] font-bold flex items-center justify-center">✓</span>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-zinc-400">{video.authorName}</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => toggleFollow(video.author)}
-                    className={`ml-2 px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
-                      isFollowing 
-                        ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' 
-                        : 'bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/30'
-                    }`}
-                  >
-                    {isFollowing ? <UserCheck size={12} /> : <UserPlus size={12} />}
-                    <span>{isFollowing ? 'Following' : 'Follow'}</span>
-                  </button>
-                </div>
-
-                {/* Caption / Description */}
-                <p className="text-zinc-100 text-sm font-normal mb-3 line-clamp-2 leading-relaxed drop-shadow">
-                  {video.description}
-                </p>
-
-                {/* Audio Track Marquee */}
-                <div className="flex items-center gap-2 text-zinc-300 text-xs">
-                  <Music2 size={13} className="text-secondary animate-pulse" />
-                  <span className="truncate max-w-[200px]">{video.songTitle}</span>
-                </div>
-              </div>
-
-              {/* Right Interactive Actions Sidebar */}
-              <div className="absolute right-3 md:right-4 bottom-6 z-20 flex flex-col items-center gap-4">
-                {/* Like Button */}
-                <button 
-                  onClick={() => toggleLike(video.id)}
-                  className="group flex flex-col items-center gap-1"
-                >
-                  <motion.div 
-                    whileTap={{ scale: 1.3 }}
-                    className={`p-3 rounded-full backdrop-blur-md border transition-all ${
-                      isLiked 
-                        ? 'bg-primary/20 border-primary/50 text-primary' 
-                        : 'bg-black/50 border-white/10 text-white group-hover:border-white/30'
-                    }`}
-                  >
-                    <Heart size={24} className={isLiked ? 'fill-primary text-primary' : 'text-white'} />
-                  </motion.div>
-                  <span className="text-white text-xs font-bold drop-shadow-md">
-                    {(likes[video.id] || video.likesCount).toLocaleString()}
-                  </span>
-                </button>
-
-                {/* Comment Button */}
-                <button 
-                  onClick={() => setCommentDrawerOpen(true)}
-                  className="group flex flex-col items-center gap-1"
-                >
-                  <motion.div 
-                    whileTap={{ scale: 0.9 }}
-                    className="p-3 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white group-hover:border-white/30 transition-all"
-                  >
-                    <MessageCircle size={24} />
-                  </motion.div>
-                  <span className="text-white text-xs font-bold drop-shadow-md">
-                    {video.commentsCount}
-                  </span>
-                </button>
-
-                {/* Tip Creator Button */}
-                <button 
-                  onClick={() => {
-                    setActiveCreator(video.author);
-                    setTipModalOpen(true);
-                  }}
-                  className="group flex flex-col items-center gap-1"
-                >
-                  <motion.div 
-                    whileTap={{ scale: 1.2 }}
-                    className="p-3 rounded-full bg-gradient-to-tr from-primary/30 to-amber-500/30 backdrop-blur-md border border-primary/40 text-amber-300 group-hover:shadow-[0_0_15px_rgba(255,46,99,0.4)] transition-all"
-                  >
-                    <Gift size={24} className="animate-bounce" />
-                  </motion.div>
-                  <span className="text-amber-300 text-xs font-bold drop-shadow-md">
-                    Tip
-                  </span>
-                </button>
-
-                {/* Share Button */}
-                <button 
-                  onClick={handleShare}
-                  className="group flex flex-col items-center gap-1"
-                >
-                  <motion.div 
-                    whileTap={{ scale: 0.9 }}
-                    className="p-3 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white group-hover:border-white/30 transition-all"
-                  >
-                    <Share2 size={24} />
-                  </motion.div>
-                  <span className="text-white text-xs font-bold drop-shadow-md">
-                    {video.sharesCount}
-                  </span>
-                </button>
-
-                {/* Spinning Audio Record */}
-                <div className="w-10 h-10 rounded-full border-2 border-zinc-700 bg-zinc-900 flex items-center justify-center mt-2 animate-spin [animation-duration:6s]">
-                  <img src={video.avatar} alt="sound" className="w-6 h-6 rounded-full object-cover" />
-                </div>
-              </div>
+    <div ref={containerRef} className="gm-card overflow-hidden border border-[var(--gm-border)]">
+      {/* Author Header */}
+      <div className="flex items-center justify-between p-3.5 border-b border-[var(--gm-border)] bg-[var(--gm-surface)]">
+        <Link 
+          to={`/profile/${video.author?.username || video.user_id}`}
+          className="flex items-center gap-2.5 group"
+        >
+          {video.author?.avatar_url ? (
+            <img 
+              src={video.author.avatar_url} 
+              alt="" 
+              className="w-9 h-9 rounded-full object-cover border border-[var(--gm-border)]"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-[var(--gm-surface-elevated)] text-[var(--gm-text)] flex items-center justify-center font-bold text-xs">
+              {video.author?.username?.charAt(0)?.toUpperCase() || 'C'}
             </div>
-          );
-        })}
+          )}
+          <div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-bold text-[var(--gm-text)] group-hover:text-[var(--gm-brand)] transition-colors">
+                {video.author?.full_name || video.author?.username || 'Creator'}
+              </span>
+              {video.author?.is_verified && (
+                <span className="w-3.5 h-3.5 rounded-full bg-[var(--gm-brand)] text-white text-[9px] flex items-center justify-center font-black">
+                  ✓
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[var(--gm-text-tertiary)]">
+              @{video.author?.username || 'creator'}
+            </p>
+          </div>
+        </Link>
+
+        {/* Post Actions Menu */}
+        <div className="flex items-center gap-1">
+          {(isOwner || isAdmin) && (
+            <button
+              onClick={onDelete}
+              className="p-1.5 text-[var(--gm-text-tertiary)] hover:text-red-400 rounded-md transition-colors"
+              title="Delete video"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+          <button
+            onClick={onReport}
+            className="p-1.5 text-[var(--gm-text-tertiary)] hover:text-amber-400 rounded-md transition-colors"
+            title="Report content"
+          >
+            <AlertTriangle size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Modals */}
-      <CommentsDrawer 
-        isOpen={commentDrawerOpen}
-        onClose={() => setCommentDrawerOpen(false)}
-        videoId={currentVideo.id}
-        commentsCount={currentVideo.commentsCount}
-      />
+      {/* Video Viewport */}
+      <div className="relative aspect-[9/16] max-h-[580px] bg-black flex items-center justify-center overflow-hidden">
+        <video
+          ref={videoRef}
+          src={video.video_url}
+          poster={video.thumbnail_url}
+          loop
+          muted={muted}
+          playsInline
+          onClick={handleVideoClick}
+          className="w-full h-full object-contain cursor-pointer"
+        />
 
-      <TipModal 
-        isOpen={tipModalOpen}
-        onClose={() => setTipModalOpen(false)}
-        creatorName={activeCreator}
-      />
+        {/* Play/Pause Overlay Indicator */}
+        {!isPlaying && (
+          <div 
+            onClick={handleVideoClick}
+            className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer pointer-events-auto"
+          >
+            <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white">
+              <Play size={24} className="ml-1" />
+            </div>
+          </div>
+        )}
+
+        {/* Volume Toggle */}
+        <button
+          onClick={onToggleMute}
+          className="absolute bottom-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-xs text-white hover:bg-black/80 transition-colors z-20"
+          aria-label={muted ? 'Unmute video' : 'Mute video'}
+        >
+          {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
+      </div>
+
+      {/* Interactive Action Bar */}
+      <div className="p-3.5 bg-[var(--gm-surface)]">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-4">
+            {/* Like */}
+            <button
+              onClick={handleLikeToggle}
+              className="flex items-center gap-1.5 text-xs font-semibold group transition-colors"
+            >
+              <Heart
+                size={19}
+                className={liked ? 'fill-red-500 text-red-500' : 'text-[var(--gm-text-secondary)] group-hover:text-red-400'}
+              />
+              <span className={liked ? 'text-red-500 font-bold' : 'text-[var(--gm-text-secondary)]'}>
+                {likesCount}
+              </span>
+            </button>
+
+            {/* Comment */}
+            <button
+              onClick={onOpenComments}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)] group transition-colors"
+            >
+              <MessageCircle size={19} className="group-hover:text-[var(--gm-brand)]" />
+              <span>{video.comments_count || 0}</span>
+            </button>
+
+            {/* Share */}
+            <button
+              onClick={onShare}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[var(--gm-text-secondary)] hover:text-[var(--gm-text)] group transition-colors"
+              title="Share video"
+            >
+              <Share2 size={18} className="group-hover:text-[var(--gm-brand)]" />
+              <span>Share</span>
+            </button>
+          </div>
+
+          {video.category && (
+            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[var(--gm-surface-elevated)] text-[var(--gm-text-secondary)] border border-[var(--gm-border)] font-medium">
+              {video.category}
+            </span>
+          )}
+        </div>
+
+        {/* Video Title & Description */}
+        <div>
+          <h3 className="text-sm font-bold text-[var(--gm-text)] mb-1">
+            {video.title}
+          </h3>
+          {video.description && (
+            <p className="text-xs text-[var(--gm-text-secondary)] line-clamp-2 leading-relaxed">
+              {video.description}
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

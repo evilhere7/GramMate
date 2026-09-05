@@ -1,27 +1,35 @@
-import { PackageOpen } from 'lucide-react';
-import Button from './Button';
+import React from 'react';
 
-export default function EmptyState({
-  icon: Icon = PackageOpen,
-  title = 'Nothing here yet',
-  description = '',
-  action,
-  actionLabel = 'Get started',
-  className = '',
+export default function EmptyState({ 
+  icon: Icon, 
+  title, 
+  description, 
+  actionLabel, 
+  onAction,
+  className = '' 
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center py-16 px-6 text-center animate-fade-in-up ${className}`}>
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl surface-brand">
-        <Icon size={28} className="text-[var(--gm-brand-light)]" aria-hidden="true" />
-      </div>
-      <h3 className="text-h3 text-[var(--gm-text)]">{title}</h3>
-      {description && (
-        <p className="mt-2 max-w-sm text-body text-[var(--gm-text-secondary)]">{description}</p>
+    <div className={`flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto ${className}`}>
+      {Icon && (
+        <div className="w-14 h-14 rounded-2xl bg-[var(--gm-surface-elevated)] border border-[var(--gm-border)] flex items-center justify-center text-[var(--gm-text-secondary)] mb-4 shadow-sm">
+          <Icon size={26} strokeWidth={1.75} />
+        </div>
       )}
-      {action && (
-        <Button onClick={action} variant="primary" size="md" className="mt-6">
+      <h3 className="text-base font-bold text-[var(--gm-text)] tracking-tight mb-1.5">
+        {title}
+      </h3>
+      {description && (
+        <p className="text-sm text-[var(--gm-text-secondary)] leading-relaxed mb-5 max-w-sm">
+          {description}
+        </p>
+      )}
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="gm-btn-primary text-xs px-4 py-2"
+        >
           {actionLabel}
-        </Button>
+        </button>
       )}
     </div>
   );
