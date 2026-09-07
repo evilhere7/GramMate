@@ -176,13 +176,22 @@ export async function uploadVideo(file, userId, { title, description, category, 
     .upload(filePath, file, { cacheControl: '31536000', upsert: true });
 
   if (uploadErr) {
-    console.warn('[supabaseService] Supabase video storage upload warning:', uploadErr.message);
+    console.error('[supabaseService] Supabase video storage upload error:', uploadErr);
+    const msg = uploadErr.message || '';
+    if (msg.toLowerCase().includes('bucket not found')) {
+      throw new Error("Supabase storage bucket 'videos' not found. Please run storage_setup.sql in your Supabase SQL Editor to create it.");
+    }
+    if (msg.toLowerCase().includes('row-level security') || uploadErr.statusCode === '403') {
+      throw new Error("Storage permission error: Please ensure storage policies are applied by running storage_setup.sql in your Supabase SQL Editor.");
+    }
+    throw new Error(msg || 'Unable to upload video file to storage. Please try again.');
   }
 
-  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  const publicUrl = urlData?.publicUrl || '';
 
-  // Insert into videos table
-  const newVideoRow = {
+  // Prepare video row (attempt full row first)
+  const fullVideoRow = {
     user_id: userId,
     title: title || 'Untitled Video',
     description: description || '',
@@ -197,15 +206,42 @@ export async function uploadVideo(file, userId, { title, description, category, 
     created_at: new Date().toISOString(),
   };
 
-  const { data: insertedVideo, error: dbErr } = await supabase
+  let { data: insertedVideo, error: dbErr } = await supabase
     .from('videos')
-    .insert(newVideoRow)
+    .insert(fullVideoRow)
     .select()
     .single();
 
+  // If columns like 'category' or 'tags' do not exist in DB yet, fallback without them
+  if (dbErr && (dbErr.code === 'PGRST204' || dbErr.message?.includes('category') || dbErr.message?.includes('tags'))) {
+    console.warn('[supabaseService] Retrying video insert without category/tags schema dependency...');
+    const baseVideoRow = {
+      user_id: userId,
+      title: title || 'Untitled Video',
+      description: description || '',
+      video_url: publicUrl,
+      thumbnail_url: null,
+      views_count: 0,
+      likes_count: 0,
+      comments_count: 0,
+      shares_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    const retryResult = await supabase
+      .from('videos')
+      .insert(baseVideoRow)
+      .select()
+      .single();
+    insertedVideo = retryResult.data;
+    dbErr = retryResult.error;
+  }
+
   if (dbErr) {
     console.error('[supabaseService] Failed to insert video into database:', dbErr);
-    throw new Error('Could not publish your video right now. Please try again.');
+    if (dbErr.code === '42501') {
+      throw new Error("Database RLS permission error: Please run the SQL migration in Supabase to allow video uploads.");
+    }
+    throw new Error(dbErr.message || 'Unable to publish video to database.');
   }
 
   return insertedVideo;

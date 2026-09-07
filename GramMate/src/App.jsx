@@ -8,28 +8,30 @@ import CreatorProfilePage from './pages/Profile/CreatorProfilePage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import Login from './pages/Auth/Login';
 import ForbiddenPage from './pages/ForbiddenPage';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Auth Route (Public Only) */}
-        <Route 
-          path="/login" 
-          element={
-            <ProtectedRoute publicOnly>
-              <Login />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/auth"  
-          element={
-            <ProtectedRoute publicOnly>
-              <Login />
-            </ProtectedRoute>
-          } 
-        />
+      <ErrorBoundary>
+        <Routes>
+          {/* Auth Route (Public Only) */}
+          <Route 
+            path="/login" 
+            element={
+              <ProtectedRoute publicOnly requireAuth={false}>
+                <Login />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/auth"  
+            element={
+              <ProtectedRoute publicOnly requireAuth={false}>
+                <Login />
+              </ProtectedRoute>
+            } 
+          />
 
         {/* 403 Access Denied */}
         <Route path="/403" element={<ForbiddenPage />} />
@@ -94,8 +96,9 @@ function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
-  );
+    </ErrorBoundary>
+  </Router>
+);
 }
 
 export default App;
