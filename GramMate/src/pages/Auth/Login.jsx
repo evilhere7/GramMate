@@ -74,8 +74,19 @@ export default function Login() {
       const userEmail = result?.user?.email || '';
       redirectUser(userEmail);
     } catch (err) {
-      if (!err?.message?.includes('closed')) {
-        setError(err?.message || 'Google sign-in could not be completed.');
+      const code = err?.code || '';
+      const message = err?.message || 'Google sign-in could not be completed.';
+      const shouldSilence = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/popup-cancelled'].includes(code);
+
+      if (!shouldSilence) {
+        if (code === 'auth/unauthorized-domain') {
+          const currentHost = window.location.hostname || 'this domain';
+          setError(`This site is running on "${currentHost}", which is not authorized in Firebase. Add "${currentHost}" and "localhost" in Firebase Console → Authentication → Settings → Authorized domains.`);
+        } else if (code === 'auth/popup-blocked') {
+          setError('Google sign-in was blocked. Please allow popups for this website and try again.');
+        } else {
+          setError(message);
+        }
       }
     }
   };

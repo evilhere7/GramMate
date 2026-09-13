@@ -10,6 +10,7 @@ const AuthContext = createContext();
 function getFirebaseErrorMessage(error) {
   const code = error?.code || '';
   const msg = error?.message || '';
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
 
   const firebaseErrorMap = {
     'auth/user-not-found': 'No account found with that email address.',
@@ -21,9 +22,11 @@ function getFirebaseErrorMessage(error) {
     'auth/weak-password': 'Password is too weak. Please use at least 6 characters.',
     'auth/too-many-requests': 'Too many attempts. Please wait a few moments and try again.',
     'auth/network-request-failed': 'Network connection issue. Please check your internet.',
+    'auth/unauthorized-domain': `This app is running on "${currentHost}", which is not authorized in Firebase. Add "${currentHost}" and "localhost" to Firebase Console → Authentication → Settings → Authorized domains.`,
     'auth/popup-closed-by-user': 'Google sign-in was closed before completing.',
-    'auth/cancelled-popup-request': 'Sign-in was cancelled.',
-    'auth/popup-blocked': 'Sign-in popup was blocked by browser. Please allow popups for this site.',
+    'auth/cancelled-popup-request': 'Google sign-in was cancelled.',
+    'auth/popup-cancelled': 'Google sign-in was cancelled.',
+    'auth/popup-blocked': 'Google sign-in was blocked by the browser. Please allow popups for this site and try again.',
     'auth/missing-password': 'Password is required.',
   };
 
@@ -117,7 +120,8 @@ export function AuthProvider({ children }) {
     } catch (error) {
       const friendlyMsg = getFirebaseErrorMessage(error);
       const code = error?.code || '';
-      if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+      const shouldSilence = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/popup-cancelled'].includes(code);
+      if (!shouldSilence) {
         toast.error(friendlyMsg);
       }
       throw new Error(friendlyMsg);

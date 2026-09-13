@@ -1,53 +1,105 @@
 -- ══════════════════════════════════════════════════════════════════════════════
 -- GramMate Supabase Storage & Database Setup Migration
 -- Run this script in the Supabase SQL Editor (Dashboard > SQL Editor > New Query > Run)
+-- This creates the exact bucket name expected by the app: videos
+-- and gives authenticated users ownership-based access to their own uploads.
 -- ══════════════════════════════════════════════════════════════════════════════
 
--- 1. Storage Buckets: Create 'videos' and 'avatars' buckets with public access
+-- 1. Ensure the storage buckets exist with sane defaults.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
-  ('videos', 'videos', true, 524288000, array['video/mp4', 'video/mpeg', 'video/quicktime', 'video/webm', 'video/x-matroska']),
-  ('avatars', 'avatars', true, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+  ('videos', 'videos', true, 524288000, ARRAY['video/mp4', 'video/mpeg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/ogg']),
+  ('avatars', 'avatars', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 ON CONFLICT (id) DO UPDATE SET
-  public = excluded.public,
-  file_size_limit = excluded.file_size_limit,
-  allowed_mime_types = excluded.allowed_mime_types;
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- 2. Storage Policies for 'videos' Bucket
-DROP POLICY IF EXISTS "Public read storage videos" ON storage.objects;
-CREATE POLICY "Public read storage videos" ON storage.objects
-FOR SELECT USING (bucket_id = 'videos');
+-- 2. Storage policies for the videos bucket.
+DROP POLICY IF EXISTS "Videos are publicly readable" ON storage.objects;
+CREATE POLICY "Videos are publicly readable"
+ON storage.objects
+FOR SELECT
+USING (bucket_id = 'videos');
 
-DROP POLICY IF EXISTS "Public upload storage videos" ON storage.objects;
-CREATE POLICY "Public upload storage videos" ON storage.objects
-FOR INSERT WITH CHECK (bucket_id = 'videos');
+DROP POLICY IF EXISTS "Users upload own videos" ON storage.objects;
+CREATE POLICY "Users upload own videos"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'videos'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+);
 
-DROP POLICY IF EXISTS "Public update storage videos" ON storage.objects;
-CREATE POLICY "Public update storage videos" ON storage.objects
-FOR UPDATE USING (bucket_id = 'videos');
+DROP POLICY IF EXISTS "Users update own videos" ON storage.objects;
+CREATE POLICY "Users update own videos"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'videos'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+)
+WITH CHECK (
+  bucket_id = 'videos'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+);
 
-DROP POLICY IF EXISTS "Public delete storage videos" ON storage.objects;
-CREATE POLICY "Public delete storage videos" ON storage.objects
-FOR DELETE USING (bucket_id = 'videos');
+DROP POLICY IF EXISTS "Users delete own videos" ON storage.objects;
+CREATE POLICY "Users delete own videos"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'videos'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+);
 
--- 3. Storage Policies for 'avatars' Bucket
-DROP POLICY IF EXISTS "Public read storage avatars" ON storage.objects;
-CREATE POLICY "Public read storage avatars" ON storage.objects
-FOR SELECT USING (bucket_id = 'avatars');
+-- 3. Storage policies for avatars bucket.
+DROP POLICY IF EXISTS "Avatars are publicly readable" ON storage.objects;
+CREATE POLICY "Avatars are publicly readable"
+ON storage.objects
+FOR SELECT
+USING (bucket_id = 'avatars');
 
-DROP POLICY IF EXISTS "Public upload storage avatars" ON storage.objects;
-CREATE POLICY "Public upload storage avatars" ON storage.objects
-FOR INSERT WITH CHECK (bucket_id = 'avatars');
+DROP POLICY IF EXISTS "Users upload own avatars" ON storage.objects;
+CREATE POLICY "Users upload own avatars"
+ON storage.objects
+FOR INSERT
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+);
 
-DROP POLICY IF EXISTS "Public update storage avatars" ON storage.objects;
-CREATE POLICY "Public update storage avatars" ON storage.objects
-FOR UPDATE USING (bucket_id = 'avatars');
+DROP POLICY IF EXISTS "Users update own avatars" ON storage.objects;
+CREATE POLICY "Users update own avatars"
+ON storage.objects
+FOR UPDATE
+USING (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+)
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+);
 
-DROP POLICY IF EXISTS "Public delete storage avatars" ON storage.objects;
-CREATE POLICY "Public delete storage avatars" ON storage.objects
-FOR DELETE USING (bucket_id = 'avatars');
+DROP POLICY IF EXISTS "Users delete own avatars" ON storage.objects;
+CREATE POLICY "Users delete own avatars"
+ON storage.objects
+FOR DELETE
+USING (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND lower(split_part(name, '/', 1)) = lower(auth.uid()::text)
+);
 
--- 4. Database Schema: Ensure 'videos' table has all required columns
+-- 4. Ensure the public.videos table has the expected columns and policies.
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General';
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
@@ -57,31 +109,51 @@ ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAUL
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS reward_rate_per_min DECIMAL(10,4) DEFAULT 0.0100;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
--- 5. Row-Level Security: Ensure video creation & playback works seamlessly
--- Note: Because GramMate uses Firebase Auth, requests arrive via anon public key.
--- These policies allow authenticated creators to publish and manage their content.
+ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Public read videos" ON public.videos;
-DROP POLICY IF EXISTS "Approved public videos are viewable" ON public.videos;
-CREATE POLICY "Public read videos" ON public.videos
-FOR SELECT USING (true);
+CREATE POLICY "Public read videos"
+ON public.videos
+FOR SELECT
+USING (true);
 
-DROP POLICY IF EXISTS "Creators insert own videos" ON public.videos;
-CREATE POLICY "Creators insert own videos" ON public.videos
-FOR INSERT WITH CHECK (user_id IS NOT NULL);
+DROP POLICY IF EXISTS "Users insert own videos" ON public.videos;
+CREATE POLICY "Users insert own videos"
+ON public.videos
+FOR INSERT
+WITH CHECK (auth.role() = 'authenticated' AND user_id = auth.uid());
 
-DROP POLICY IF EXISTS "Creators update own videos" ON public.videos;
-CREATE POLICY "Creators update own videos" ON public.videos
-FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Users update own videos" ON public.videos;
+CREATE POLICY "Users update own videos"
+ON public.videos
+FOR UPDATE
+USING (auth.role() = 'authenticated' AND user_id = auth.uid())
+WITH CHECK (auth.role() = 'authenticated' AND user_id = auth.uid());
 
-DROP POLICY IF EXISTS "Creators delete own videos" ON public.videos;
-CREATE POLICY "Creators delete own videos" ON public.videos
-FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Users delete own videos" ON public.videos;
+CREATE POLICY "Users delete own videos"
+ON public.videos
+FOR DELETE
+USING (auth.role() = 'authenticated' AND user_id = auth.uid());
 
--- 6. Ensure profiles table allows sync from Firebase Auth
-DROP POLICY IF EXISTS "Public insert profiles" ON public.profiles;
-CREATE POLICY "Public insert profiles" ON public.profiles
-FOR INSERT WITH CHECK (true);
+-- 5. Ensure profiles allow Firebase/Supabase auth sync.
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Public update profiles" ON public.profiles;
-CREATE POLICY "Public update profiles" ON public.profiles
-FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Public read profiles" ON public.profiles;
+CREATE POLICY "Public read profiles"
+ON public.profiles
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "Users insert own profile" ON public.profiles;
+CREATE POLICY "Users insert own profile"
+ON public.profiles
+FOR INSERT
+WITH CHECK (auth.role() = 'authenticated' AND id = auth.uid());
+
+DROP POLICY IF EXISTS "Users update own profile" ON public.profiles;
+CREATE POLICY "Users update own profile"
+ON public.profiles
+FOR UPDATE
+USING (auth.role() = 'authenticated' AND id = auth.uid())
+WITH CHECK (auth.role() = 'authenticated' AND id = auth.uid());

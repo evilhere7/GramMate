@@ -166,23 +166,50 @@ export async function fetchUserVideos(userId) {
 
 export async function uploadVideo(file, userId, { title, description, category, tags = [] } = {}) {
   if (!file) throw new Error('No video file provided');
+  if (!userId) throw new Error('You must be signed in to upload a video.');
+
+  const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/mpeg', 'video/ogg'];
+  if (!file.type || !allowedTypes.includes(file.type)) {
+    throw new Error('Please choose a supported video format: MP4, WebM, MOV, or MKV.');
+  }
+
+  if (file.size <= 0) {
+    throw new Error('The selected video file is empty. Please choose a valid video.');
+  }
+
+  if (file.size > 500 * 1024 * 1024) {
+    throw new Error('Video file is too large. Please choose a file under 500 MB.');
+  }
+
   const bucket = 'videos';
   const ext = file.name.split('.').pop() || 'mp4';
   const filePath = `${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
 
+  const { data: bucketData, error: bucketErr } = await supabase.storage.getBucket(bucket);
+  if (bucketErr || !bucketData) {
+    const message = `Supabase storage bucket '${bucket}' does not exist or is not accessible. Run the SQL in supabase/storage_setup.sql in the Supabase SQL Editor to create the bucket and policies.`;
+    console.error('[supabaseService] Missing video bucket:', bucketErr || message);
+    throw new Error(message);
+  }
+
   // Upload to Supabase storage
   const { error: uploadErr } = await supabase.storage
     .from(bucket)
-    .upload(filePath, file, { cacheControl: '31536000', upsert: true });
+    .upload(filePath, file, { cacheControl: '31536000', upsert: false });
 
   if (uploadErr) {
     console.error('[supabaseService] Supabase video storage upload error:', uploadErr);
     const msg = uploadErr.message || '';
-    if (msg.toLowerCase().includes('bucket not found')) {
-      throw new Error("Supabase storage bucket 'videos' not found. Please run storage_setup.sql in your Supabase SQL Editor to create it.");
+    const normalized = msg.toLowerCase();
+
+    if (normalized.includes('bucket not found') || normalized.includes('does not exist')) {
+      throw new Error(`Supabase storage bucket '${bucket}' is missing. Run the SQL in supabase/storage_setup.sql in your Supabase dashboard to create it.`);
     }
-    if (msg.toLowerCase().includes('row-level security') || uploadErr.statusCode === '403') {
-      throw new Error("Storage permission error: Please ensure storage policies are applied by running storage_setup.sql in your Supabase SQL Editor.");
+    if (normalized.includes('row-level security') || normalized.includes('policy') || uploadErr.statusCode === '403') {
+      throw new Error('Storage permission error. Please ensure the videos bucket and storage policies are configured correctly in Supabase.');
+    }
+    if (normalized.includes('not authorized') || normalized.includes('permission denied')) {
+      throw new Error('You are not allowed to upload to the videos bucket. Please sign in again and confirm your storage permissions.');
     }
     throw new Error(msg || 'Unable to upload video file to storage. Please try again.');
   }
@@ -190,7 +217,7 @@ export async function uploadVideo(file, userId, { title, description, category, 
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
   const publicUrl = urlData?.publicUrl || '';
 
-  // Prepare video row (attempt full row first)
+  const sanitizedTags = Array.isArray(tags) ? tags.filter(Boolean).slice(0, 10) : [];
   const fullVideoRow = {
     user_id: userId,
     title: title || 'Untitled Video',
@@ -198,7 +225,7 @@ export async function uploadVideo(file, userId, { title, description, category, 
     video_url: publicUrl,
     thumbnail_url: null,
     category: category || 'General',
-    tags: tags || [],
+    tags: sanitizedTags,
     views_count: 0,
     likes_count: 0,
     comments_count: 0,
@@ -212,7 +239,6 @@ export async function uploadVideo(file, userId, { title, description, category, 
     .select()
     .single();
 
-  // If columns like 'category' or 'tags' do not exist in DB yet, fallback without them
   if (dbErr && (dbErr.code === 'PGRST204' || dbErr.message?.includes('category') || dbErr.message?.includes('tags'))) {
     console.warn('[supabaseService] Retrying video insert without category/tags schema dependency...');
     const baseVideoRow = {
@@ -238,8 +264,9 @@ export async function uploadVideo(file, userId, { title, description, category, 
 
   if (dbErr) {
     console.error('[supabaseService] Failed to insert video into database:', dbErr);
-    if (dbErr.code === '42501') {
-      throw new Error("Database RLS permission error: Please run the SQL migration in Supabase to allow video uploads.");
+    await supabase.storage.from(bucket).remove([filePath]).catch(() => {});
+    if (dbErr.code === '42501' || dbErr.message?.toLowerCase().includes('policy')) {
+      throw new Error('Database permission error: your video upload was blocked by Supabase row-level security. Review the videos table policies and make sure the creator is allowed to insert rows.');
     }
     throw new Error(dbErr.message || 'Unable to publish video to database.');
   }
