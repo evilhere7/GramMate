@@ -21,6 +21,12 @@ model User {
   avatarUrl         String?
   bio               String?
   emailVerified     Boolean       @default(false)
+  stripeAccountId   String?       @unique
+  stripeAccountStatus String       @default("not_started")
+  stripeOnboardingCompletedAt DateTime?
+  stripePayoutsEnabled Boolean     @default(false)
+  stripeChargesEnabled Boolean     @default(false)
+  stripeDetailsSubmitted Boolean   @default(false)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   videos            Video[]

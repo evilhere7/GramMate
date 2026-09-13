@@ -27,6 +27,10 @@ export default {
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? `${backendUrl}/api/auth/google/callback`,
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+  stripeReturnUrl: process.env.STRIPE_RETURN_URL ?? `${frontendUrl}/profile?stripe=complete`,
+  stripeRefreshUrl: process.env.STRIPE_REFRESH_URL ?? `${frontendUrl}/profile?stripe=refresh`,
   superAdminEmail: process.env.SUPER_ADMIN_EMAIL ?? 'evilmc777@gmail.com',
   superAdminPassword: process.env.SUPER_ADMIN_PASSWORD ?? 'SuperAdmin!123',
 };
