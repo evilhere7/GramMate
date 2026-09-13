@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('[AuthContext] Failed to refresh profile:', err);
     }
-  }, [user?.id]);
+  }, [user]);
 
   const signIn = async (email, password) => {
     if (authProcessing) return;
@@ -83,7 +83,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       const friendlyMsg = getFirebaseErrorMessage(error);
       toast.error(friendlyMsg);
-      throw new Error(friendlyMsg);
+      throw new Error(friendlyMsg, { cause: error });
     } finally {
       setAuthProcessing(false);
     }
@@ -104,7 +104,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       const friendlyMsg = getFirebaseErrorMessage(error);
       toast.error(friendlyMsg);
-      throw new Error(friendlyMsg);
+      throw new Error(friendlyMsg, { cause: error });
     } finally {
       setAuthProcessing(false);
     }
@@ -124,7 +124,7 @@ export function AuthProvider({ children }) {
       if (!shouldSilence) {
         toast.error(friendlyMsg);
       }
-      throw new Error(friendlyMsg);
+      throw new Error(friendlyMsg, { cause: error });
     } finally {
       setAuthProcessing(false);
     }
@@ -169,7 +169,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       const friendlyMsg = getFirebaseErrorMessage(error);
       toast.error(friendlyMsg);
-      throw new Error(friendlyMsg);
+      throw new Error(friendlyMsg, { cause: error });
     } finally {
       setAuthProcessing(false);
     }

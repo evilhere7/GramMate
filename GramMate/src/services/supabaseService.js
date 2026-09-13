@@ -394,7 +394,7 @@ export async function addComment(videoId, userId, content) {
     return data;
   } catch (err) {
     console.error('[supabaseService] addComment error:', err?.message || err);
-    throw new Error('Failed to post comment. Please try again.');
+    throw new Error('Failed to post comment. Please try again.', { cause: err });
   }
 }
 
@@ -468,7 +468,7 @@ export async function requestWithdrawal(userId, amountCents, method = 'Stripe Ba
     return data;
   } catch (err) {
     console.error('[supabaseService] requestWithdrawal error:', err?.message || err);
-    throw new Error('Could not submit payout request. Please try again.');
+    throw new Error('Could not submit payout request. Please try again.', { cause: err });
   }
 }
 
@@ -493,7 +493,7 @@ export async function submitReport({ videoId, reporterId, reason, description })
     return data;
   } catch (err) {
     console.warn('[supabaseService] submitReport error:', err?.message || err);
-    throw new Error('Failed to submit report. Please try again.');
+    throw new Error('Failed to submit report. Please try again.', { cause: err });
   }
 }
 
