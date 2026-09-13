@@ -7,6 +7,8 @@ import {
   Wallet, 
   User as UserIcon, 
   ShieldAlert,
+  BadgeDollarSign,
+  Gift,
   ArrowUpRight,
   LogOut,
   LogIn
@@ -21,6 +23,8 @@ const NAV_ITEMS = [
   { icon: Compass, label: 'Discover', path: '/discover' },
   { icon: PlusSquare, label: 'Create', path: '/upload', highlight: true },
   { icon: Wallet, label: 'Wallet', path: '/wallet' },
+  { icon: BadgeDollarSign, label: 'Earnings', path: '/earnings' },
+  { icon: Gift, label: 'Rewards', path: '/rewards' },
   { icon: UserIcon, label: 'Profile', path: '/profile' },
 ];
 
@@ -35,7 +39,7 @@ export default function MainLayout() {
     if (user?.id) {
       fetchWallet(user.id).then((wallet) => {
         if (isMounted && wallet) {
-          setWalletBalance((wallet.balance_cents || 0) / 100);
+          setWalletBalance(((wallet.available_cents ?? wallet.balance_cents) || 0) / 100);
         }
       });
     } else {

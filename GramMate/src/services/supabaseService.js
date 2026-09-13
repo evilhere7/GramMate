@@ -1,4 +1,9 @@
 import { supabase } from '../lib/supabase';
+import {
+  fetchWalletSummary,
+  fetchWalletLedger,
+  submitWithdrawalRequest,
+} from './economyService';
 
 // ─── Profile Services ───
 
@@ -402,74 +407,21 @@ export async function addComment(videoId, userId, content) {
 
 export async function fetchWallet(userId) {
   if (!userId) return null;
-  try {
-    let { data: wallet, error } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!wallet && !error) {
-      // Create initial wallet
-      const { data: newWallet } = await supabase
-        .from('wallets')
-        .insert({
-          user_id: userId,
-          balance_cents: 0,
-          pending_cents: 0,
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .maybeSingle();
-
-      wallet = newWallet;
-    }
-
-    return wallet || { balance_cents: 0, pending_cents: 0 };
-  } catch (err) {
-    console.warn('[supabaseService] fetchWallet warning:', err?.message || err);
-    return { balance_cents: 0, pending_cents: 0 };
-  }
+  return fetchWalletSummary(userId);
 }
 
 export async function fetchTransactions(userId) {
   if (!userId) return [];
-  try {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
-  } catch (err) {
-    console.warn('[supabaseService] fetchTransactions warning:', err?.message || err);
-    return [];
-  }
+  return fetchWalletLedger(userId);
 }
 
 export async function requestWithdrawal(userId, amountCents, method = 'Stripe Bank') {
-  try {
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: userId,
-        amount_cents: -Math.abs(amountCents),
-        transaction_type: 'withdrawal',
-        status: 'pending',
-        description: `Payout request via ${method}`,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error('[supabaseService] requestWithdrawal error:', err?.message || err);
-    throw new Error('Could not submit payout request. Please try again.', { cause: err });
-  }
+  if (!userId) throw new Error('Please sign in before requesting a withdrawal.');
+  return submitWithdrawalRequest({
+    amountCents: Math.abs(amountCents),
+    payoutMethod: method,
+    destinationLabel: method,
+  });
 }
 
 // ─── Moderation & Reports ───
