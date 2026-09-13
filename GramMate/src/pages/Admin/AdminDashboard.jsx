@@ -12,7 +12,11 @@ import {
   XCircle,
   ExternalLink,
   RefreshCw,
-  Clock
+  Clock,
+  Settings,
+  Landmark,
+  Gift,
+  ShieldAlert
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -26,8 +30,12 @@ import {
   updateAdminReportStatus,
   fetchAdminTransactions 
 } from '../../services/supabaseService';
+import { fetchAdminEconomyOverview } from '../../services/economyService';
 import { TableRowSkeleton } from '../../components/ui/Skeleton';
 import EmptyState from '../../components/ui/EmptyState';
+
+const formatMoney = (cents = 0) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'users' | 'content' | 'reports' | 'transactions'
@@ -53,6 +61,8 @@ export default function AdminDashboard() {
 
   const [transactionsList, setTransactionsList] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [economy, setEconomy] = useState(null);
+  const [loadingEconomy, setLoadingEconomy] = useState(false);
 
   const { user, signOut } = useAuth();
 
@@ -98,6 +108,12 @@ export default function AdminDashboard() {
       fetchAdminTransactions().then((data) => {
         setTransactionsList(data);
         setLoadingTransactions(false);
+      });
+    } else if (activeTab === 'economy') {
+      setLoadingEconomy(true);
+      fetchAdminEconomyOverview().then((data) => {
+        setEconomy(data);
+        setLoadingEconomy(false);
       });
     }
   }, [activeTab, userSearch]);
@@ -175,6 +191,7 @@ export default function AdminDashboard() {
             { id: 'content', label: 'Content Review', icon: Video },
             { id: 'reports', label: 'Moderation Queue', icon: AlertTriangle, badge: metrics.totalReports > 0 ? metrics.totalReports : null },
             { id: 'transactions', label: 'Financial Audit', icon: DollarSign },
+            { id: 'economy', label: 'Economy', icon: Landmark },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -542,6 +559,133 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 6: ECONOMY */}
+        {activeTab === 'economy' && (
+          <div className="space-y-6">
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-4 text-xs text-amber-100">
+              <div className="flex gap-3">
+                <ShieldAlert size={18} className="text-amber-300 shrink-0 mt-0.5" />
+                <p>
+                  Economy controls are architecture-first. Do not enable withdrawals, tips, subscriptions, or advertising until real providers, webhooks, settlement jobs, legal terms, and fraud review operations are configured.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Gross Revenue', value: formatMoney(economy?.revenue?.grossRevenueCents), icon: DollarSign },
+                { label: 'Net Revenue', value: formatMoney(economy?.revenue?.netRevenueCents), icon: Landmark },
+                { label: 'Pending Payouts', value: formatMoney(economy?.pendingPayoutCents), icon: Clock },
+                { label: 'Points Issued', value: (economy?.pointsIssued || 0).toLocaleString(), icon: Gift },
+              ].map((stat) => {
+                const Icon = stat.icon;
+                return (
+                  <div key={stat.label} className="gm-card p-5 border border-[var(--gm-border)]">
+                    <Icon size={18} className="text-[var(--gm-brand)]" aria-hidden="true" />
+                    <span className="text-xs font-bold text-[var(--gm-text-tertiary)] uppercase tracking-wider block mt-4 mb-1">
+                      {stat.label}
+                    </span>
+                    <p className="text-2xl md:text-3xl font-black text-[var(--gm-text)]">
+                      {loadingEconomy ? '-' : stat.value}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6">
+              <section className="gm-card overflow-hidden">
+                <div className="p-4 border-b border-[var(--gm-border)] flex items-center justify-between">
+                  <h2 className="text-sm font-bold">Revenue by Source</h2>
+                  <span className="text-xs text-[var(--gm-text-tertiary)]">confirmed revenue only</span>
+                </div>
+                {Object.keys(economy?.revenue?.byType || {}).length === 0 ? (
+                  <div className="py-12">
+                    <EmptyState
+                      icon={DollarSign}
+                      title="No confirmed platform revenue"
+                      description="Revenue will appear only after trusted backend/admin systems record confirmed provider payments."
+                    />
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--gm-border)]">
+                    {Object.entries(economy.revenue.byType).map(([type, value]) => (
+                      <div key={type} className="p-4 flex items-center justify-between text-xs">
+                        <span className="font-bold capitalize">{type.replace(/_/g, ' ')}</span>
+                        <span className="font-black text-sm">{formatMoney(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="gm-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-bold">Allocation Settings</h2>
+                  <Settings size={16} className="text-[var(--gm-text-tertiary)]" />
+                </div>
+                {Object.entries(economy?.settings?.pool_allocations || {}).map(([key, value]) => (
+                  <div key={key} className="mb-4 text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="capitalize text-[var(--gm-text-secondary)]">{key.replace(/_/g, ' ')}</span>
+                      <span className="font-bold">{value}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[var(--gm-surface-elevated)]">
+                      <div className="h-1.5 rounded-full bg-[var(--gm-brand)]" style={{ width: `${value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <section className="gm-card p-5">
+                <h2 className="text-sm font-bold mb-3">Feature Flags</h2>
+                <div className="space-y-2">
+                  {Object.entries(economy?.settings?.feature_flags || {}).map(([key, enabled]) => (
+                    <div key={key} className="flex items-center justify-between text-xs">
+                      <span className="capitalize text-[var(--gm-text-secondary)]">{key.replace(/_/g, ' ')}</span>
+                      <span className={`gm-badge ${enabled ? 'gm-badge-success' : 'gm-badge-warning'} text-[10px]`}>
+                        {enabled ? 'enabled' : 'disabled'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="gm-card p-5">
+                <h2 className="text-sm font-bold mb-3">Provider Status</h2>
+                <div className="space-y-2">
+                  {Object.entries(economy?.settings?.payment_provider_status || {}).map(([key, status]) => (
+                    <div key={key} className="flex items-center justify-between text-xs">
+                      <span className="capitalize text-[var(--gm-text-secondary)]">{key.replace(/_/g, ' ')}</span>
+                      <span className="font-bold text-amber-400">{status.replace(/_/g, ' ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="gm-card p-5">
+                <h2 className="text-sm font-bold mb-3">Review Queues</h2>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--gm-text-secondary)]">Withdrawals</span>
+                    <span className="font-black">{economy?.withdrawals?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--gm-text-secondary)]">Fraud events</span>
+                    <span className="font-black">{economy?.fraudEvents?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--gm-text-secondary)]">Settlements</span>
+                    <span className="font-black">{economy?.settlements?.length || 0}</span>
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
         )}
       </main>

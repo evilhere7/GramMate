@@ -3,6 +3,8 @@ import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import VideoFeed from './pages/Feed/VideoFeed';
 import WalletDashboard from './pages/Wallet/WalletDashboard';
+import CreatorEarningsPage from './pages/Economy/CreatorEarningsPage';
+import ViewerRewardsPage from './pages/Economy/ViewerRewardsPage';
 import UploadPage from './pages/Upload/UploadPage';
 import CreatorProfilePage from './pages/Profile/CreatorProfilePage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
@@ -58,6 +60,22 @@ function App() {
             element={
               <ProtectedRoute requireAuth>
                 <WalletDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="earnings" 
+            element={
+              <ProtectedRoute requireAuth>
+                <CreatorEarningsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="rewards" 
+            element={
+              <ProtectedRoute requireAuth>
+                <ViewerRewardsPage />
               </ProtectedRoute>
             } 
           />

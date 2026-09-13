@@ -40,6 +40,25 @@ create table if not exists public.economy_setting_history (
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
+create table if not exists public.wallets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete cascade not null unique,
+  balance_cents integer not null default 0,
+  pending_cents integer not null default 0,
+  updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+create table if not exists public.transactions (
+  id uuid primary key default gen_random_uuid(),
+  wallet_id uuid references public.wallets(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  amount_cents integer not null,
+  transaction_type text not null,
+  status text not null default 'completed',
+  description text,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
 insert into public.economy_settings (key, value, value_type, is_public, description)
 values
   ('feature_flags', '{
@@ -564,6 +583,8 @@ create index if not exists idx_fraud_events_status_score on public.fraud_events(
 
 alter table public.economy_settings enable row level security;
 alter table public.economy_setting_history enable row level security;
+alter table public.wallets enable row level security;
+alter table public.transactions enable row level security;
 alter table public.wallet_transactions enable row level security;
 alter table public.platform_revenue enable row level security;
 alter table public.economy_settlements enable row level security;
@@ -597,6 +618,24 @@ create policy "Economy settings admin manage" on public.economy_settings
 drop policy if exists "Economy history admin read" on public.economy_setting_history;
 create policy "Economy history admin read" on public.economy_setting_history
   for select using (public.is_admin());
+
+drop policy if exists "Wallets are readable" on public.wallets;
+drop policy if exists "Allow wallet update" on public.wallets;
+drop policy if exists "Users view own wallet" on public.wallets;
+drop policy if exists "Wallet own read" on public.wallets;
+create policy "Wallet own read" on public.wallets
+  for select using (auth.uid() = user_id or public.is_admin());
+
+drop policy if exists "Wallet admin manage" on public.wallets;
+create policy "Wallet admin manage" on public.wallets
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Transactions are readable" on public.transactions;
+drop policy if exists "Allow transaction insert" on public.transactions;
+drop policy if exists "Users view own transactions" on public.transactions;
+drop policy if exists "Legacy transactions own read" on public.transactions;
+create policy "Legacy transactions own read" on public.transactions
+  for select using (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "Wallet transactions own read" on public.wallet_transactions;
 create policy "Wallet transactions own read" on public.wallet_transactions
