@@ -41,3 +41,6 @@ begin
   return ledger_row;
 end;
 $$ language plpgsql security definer set search_path = public;
+
+revoke execute on function public.record_pending_wallet_credit(uuid, integer, uuid, text, text) from public, anon, authenticated;
+grant execute on function public.record_pending_wallet_credit(uuid, integer, uuid, text, text) to service_role;

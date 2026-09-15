@@ -259,6 +259,8 @@ export async function handleStripeWebhook(req, res) {
       : await prisma.user.findFirst({ where: { stripeAccountId: account.id } });
     if (user) await syncStripeAccount(user.id, account);
     if (user) await syncPayoutAccount({ userId: user.id, providerAccountId: account.id, account });
+    if (user) await syncPayoutAccount({ userId: user.financialId, providerAccountId: account.id, account });
+    if (storedEvent.duplicate && storedEvent.processed) return res.json({ received: true, duplicate: true });
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -271,6 +273,12 @@ export async function handleStripeWebhook(req, res) {
     }
     if (session.mode === 'payment' && session.metadata?.creator_id) {
       await updateTipFromCheckout({ session, status: 'confirmed' });
+            const tipStatus = session.payment_status === 'paid' ? 'confirmed' : 'pending_payment';
+            await updateTipFromCheckout({ session, status: tipStatus });
+            if (tipStatus !== 'confirmed') {
+              await markWebhookProcessed(provider.name, event.id);
+              return res.status(202).json({ received: true, pending: true });
+            }
       const tip = await getTipByProviderReference(session.id);
       if (tip) {
         await recordPlatformRevenue({
@@ -343,6 +351,7 @@ export async function handleStripeWebhook(req, res) {
   }
 
   await markWebhookProcessed(event.id);
+  await markWebhookProcessed(provider.name, event.id);
 
   return res.json({ received: true });
 }

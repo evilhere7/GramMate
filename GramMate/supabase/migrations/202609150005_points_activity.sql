@@ -62,3 +62,6 @@ begin
   return ledger_row;
 end;
 $$ language plpgsql security definer set search_path = public;
+
+revoke execute on function public.record_points_activity(uuid, text, uuid, text) from public, anon, authenticated;
+grant execute on function public.record_points_activity(uuid, text, uuid, text) to service_role;

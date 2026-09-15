@@ -28,16 +28,26 @@ export async function recordWebhookEvent({ provider, event }) {
     .select('id,processed')
     .maybeSingle();
 
-  if (error?.code === '23505') return { duplicate: true };
+    if (error?.code === '23505') {
+      const { data: existing, error: lookupError } = await client
+        .from('payment_webhook_events')
+        .select('id,processed')
+        .eq('provider', provider)
+        .eq('event_id', event.id)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+      return { duplicate: true, processed: Boolean(existing?.processed) };
+    }
   if (error) throw error;
   return { duplicate: false, event: data };
 }
 
-export async function markWebhookProcessed(eventId) {
+export async function markWebhookProcessed(provider, eventId) {
   const client = requireSupabase();
-  const { error } = await client
-    .from('payment_webhook_events')
-    .update({ processed: true, processed_at: new Date().toISOString() })
-    .eq('event_id', eventId);
+    const { error } = await client
+      .from('payment_webhook_events')
+      .update({ processed: true, processed_at: new Date().toISOString() })
+      .eq('provider', provider)
+      .eq('event_id', eventId);
   if (error) throw error;
 }

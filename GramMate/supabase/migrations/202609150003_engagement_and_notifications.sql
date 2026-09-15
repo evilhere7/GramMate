@@ -86,6 +86,9 @@ exception when unique_violation then
 end;
 $$ language plpgsql security definer set search_path = public;
 
+revoke execute on function public.record_qualified_view(uuid, uuid, uuid, integer, integer, text, integer) from public, anon, authenticated;
+grant execute on function public.record_qualified_view(uuid, uuid, uuid, integer, integer, text, integer) to service_role;
+
 alter table public.notifications enable row level security;
 alter table public.qualified_view_events enable row level security;
 
