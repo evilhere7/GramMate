@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
 import { PrismaClient } from '@prisma/client';
+import { getFinancialUserId } from '../utils/financialIdentity.js';
 
 const prisma = new PrismaClient();
 
@@ -150,6 +151,7 @@ export async function authenticate(req, res, next) {
     }
 
     req.user = user;
+    req.user.financialId = getFinancialUserId(user.id);
     next();
   } catch (error) {
     console.error('[AuthMiddleware] Authentication failure:', error.message);

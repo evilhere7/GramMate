@@ -86,7 +86,7 @@ export async function recordSubscriptionFromStripe(subscription, userId, planId)
   if (error) throw error;
 }
 
-export async function recordPlatformRevenue({ eventId, revenueType, grossAmountCents, feeCents = 0, currency = 'USD', reference, metadata = {} }) {
+export async function recordPlatformRevenue({ eventId, revenueType, grossAmountCents, feeCents = 0, currency = 'USD', reference, metadata = {}, status = 'confirmed' }) {
   const client = requireSupabase();
   const { error } = await client
     .from('platform_revenue')
@@ -99,7 +99,7 @@ export async function recordPlatformRevenue({ eventId, revenueType, grossAmountC
       provider_fee_cents: feeCents,
       currency: currency.toUpperCase(),
       source_reference: reference,
-      status: 'confirmed',
+      status,
       metadata: { ...metadata, webhook_event_id: eventId },
       idempotency_key: `stripe-revenue:${eventId}`,
     });
@@ -145,9 +145,10 @@ export async function getUserIdFromStripeMetadata(metadata = {}) {
   return metadata.grammate_user_id || metadata.user_id || null;
 }
 
-export async function recordQualifiedView({ videoId, creatorId, watchSeconds, durationSeconds, sessionKey, riskScore = 0 }) {
+export async function recordQualifiedView({ viewerId, videoId, creatorId, watchSeconds, durationSeconds, sessionKey, riskScore = 0 }) {
   const client = requireSupabase();
   const { data, error } = await client.rpc('record_qualified_view', {
+    target_viewer_id: viewerId,
     target_video_id: videoId,
     target_creator_id: creatorId,
     target_watch_seconds: watchSeconds,
@@ -198,4 +199,16 @@ export async function updatePayoutFromProvider({ providerPayoutId, status, failu
     .maybeSingle();
   if (error) throw error;
   return payout;
+}
+
+export async function recordPointsActivity({ userId, source, referenceId, idempotencyKey }) {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('record_points_activity', {
+    target_user_id: userId,
+    target_source: source,
+    target_reference_id: referenceId || null,
+    target_idempotency_key: idempotencyKey,
+  });
+  if (error) throw error;
+  return data;
 }

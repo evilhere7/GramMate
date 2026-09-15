@@ -9,6 +9,7 @@ import {
   insertCheckoutTip,
   insertNotification,
   recordPlatformRevenue,
+  recordPointsActivity,
   recordSubscriptionFromStripe,
   recordQualifiedView,
   syncPayoutAccount,
@@ -52,12 +53,13 @@ function requirePositiveMinorAmount(value, maximum = 1000000) {
 
 export async function createSubscriptionCheckout(req, res) {
   const provider = requireProvider();
+  const financialUserId = req.user.financialId;
   const { planId } = req.body || {};
   if (!planId) return res.status(400).json({ message: 'A subscription plan is required.' });
 
   const [plan, profile] = await Promise.all([
     getActiveSubscriptionPlan(planId),
-    getProfileForPayment(req.user.id),
+    getProfileForPayment(financialUserId),
   ]);
   if (!plan || !plan.provider_price_id) {
     return res.status(404).json({ message: 'The selected subscription plan is unavailable.' });
@@ -68,9 +70,9 @@ export async function createSubscriptionCheckout(req, res) {
     mode: 'subscription',
     customer_email: profile.email,
     line_items: [{ price: plan.provider_price_id, quantity: 1 }],
-    client_reference_id: req.user.id,
-    metadata: { grammate_user_id: req.user.id, plan_id: plan.id },
-    subscription_data: { metadata: { grammate_user_id: req.user.id, plan_id: plan.id } },
+    client_reference_id: financialUserId,
+    metadata: { grammate_user_id: financialUserId, plan_id: plan.id },
+    subscription_data: { metadata: { grammate_user_id: financialUserId, plan_id: plan.id } },
     success_url: `${config.frontendUrl.replace(/\/$/, '')}/payment-status?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${config.frontendUrl.replace(/\/$/, '')}/premium?payment=canceled`,
   });
@@ -80,12 +82,13 @@ export async function createSubscriptionCheckout(req, res) {
 
 export async function createTipCheckout(req, res) {
   const provider = requireProvider();
+  const financialUserId = req.user.financialId;
   const { creatorId, amountCents } = req.body || {};
-  if (!creatorId || creatorId === req.user.id) {
+  if (!creatorId || creatorId === financialUserId) {
     return res.status(400).json({ message: 'You cannot tip yourself.' });
   }
   const amount = requirePositiveMinorAmount(amountCents, 100000);
-  const profile = await getProfileForPayment(req.user.id);
+  const profile = await getProfileForPayment(financialUserId);
   if (!profile) return res.status(404).json({ message: 'Payment profile not found.' });
 
   const platformFeeCents = Math.floor(amount * 0.2);
@@ -101,9 +104,9 @@ export async function createTipCheckout(req, res) {
       },
       quantity: 1,
     }],
-    client_reference_id: req.user.id,
+    client_reference_id: financialUserId,
     metadata: {
-      grammate_user_id: req.user.id,
+      grammate_user_id: financialUserId,
       creator_id: creatorId,
       platform_fee_cents: String(platformFeeCents),
       creator_amount_cents: String(creatorAmountCents),
@@ -113,7 +116,7 @@ export async function createTipCheckout(req, res) {
   });
 
   await insertCheckoutTip({
-    senderId: req.user.id,
+    senderId: financialUserId,
     creatorId,
     amountCents: amount,
     currency: 'USD',
@@ -165,14 +168,24 @@ export async function recordQualifiedViewEvent(req, res) {
   const watchSeconds = getSafeInteger(req.body?.watchSeconds, 'watchSeconds');
   const durationSeconds = getSafeInteger(req.body?.durationSeconds, 'durationSeconds', 1);
   const riskScore = getSafeInteger(req.body?.riskScore ?? 0, 'riskScore', 0, 100);
-  const event = await recordQualifiedView({ videoId, creatorId, watchSeconds, durationSeconds, sessionKey, riskScore });
+  const event = await recordQualifiedView({ viewerId: req.user.financialId, videoId, creatorId, watchSeconds, durationSeconds, sessionKey, riskScore });
   return res.status(201).json({ event });
+}
+
+export async function recordPointsActivityEvent(req, res) {
+  const source = getString(req.body?.source, 'source');
+  const idempotencyKey = getString(req.body?.idempotencyKey, 'idempotencyKey');
+  const referenceId = req.body?.referenceId || null;
+  const allowedSources = ['qualified_watch', 'meaningful_comment', 'follow_creator', 'qualified_referral', 'campaign_activity'];
+  if (!allowedSources.includes(source)) return res.status(400).json({ message: 'Unsupported points activity.' });
+  const ledger = await recordPointsActivity({ userId: req.user.financialId, source, referenceId, idempotencyKey });
+  return res.status(201).json({ ledger });
 }
 
 export async function runCreatorSettlementJob(req, res) {
   const periodStart = getString(req.body?.periodStart, 'periodStart');
   const periodEnd = getString(req.body?.periodEnd, 'periodEnd');
-  const result = await runCreatorSettlement({ periodStart, periodEnd, actorId: req.user.id });
+  const result = await runCreatorSettlement({ periodStart, periodEnd, actorId: req.user.financialId });
   return res.status(result.duplicate ? 200 : 201).json(result);
 }
 
@@ -254,14 +267,6 @@ export async function handleStripeWebhook(req, res) {
     if (session.mode === 'subscription' && session.subscription && userId) {
       const subscription = await provider.getSubscription(session.subscription);
       await recordSubscriptionFromStripe(subscription, userId, session.metadata?.plan_id);
-      await recordPlatformRevenue({
-        eventId: event.id,
-        revenueType: 'premium_subscription',
-        grossAmountCents: session.amount_total || 0,
-        reference: session.payment_intent || session.id,
-        currency: session.currency || 'usd',
-        metadata: { status: 'pending_reconciliation', subscription_id: subscription.id },
-      });
       await insertNotification({ userId, type: 'subscription_activated', title: 'Premium payment received', message: 'Your Premium subscription is being verified.' });
     }
     if (session.mode === 'payment' && session.metadata?.creator_id) {
@@ -292,6 +297,27 @@ export async function handleStripeWebhook(req, res) {
     const invoice = event.data.object;
     const userId = invoice.subscription_details?.metadata?.grammate_user_id || invoice.metadata?.grammate_user_id;
     if (userId) await insertNotification({ userId, type: 'payment_failed', title: 'Premium payment failed', message: 'Your Premium payment could not be completed.' });
+  }
+
+  if (event.type === 'invoice.paid') {
+    const invoice = event.data.object;
+    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    const subscription = subscriptionId ? await provider.getSubscription(subscriptionId) : null;
+    const userId = subscription?.metadata?.grammate_user_id || invoice.metadata?.grammate_user_id;
+    if (userId) {
+      await recordSubscriptionFromStripe(subscription, userId, subscription.metadata?.plan_id);
+      await recordPlatformRevenue({
+        eventId: event.id,
+        revenueType: 'premium_subscription',
+        grossAmountCents: invoice.amount_paid || 0,
+        feeCents: 0,
+        reference: invoice.payment_intent || invoice.id,
+        currency: invoice.currency || 'usd',
+        metadata: { subscription_id: subscriptionId },
+        status: 'confirmed',
+      });
+      await insertNotification({ userId, type: 'subscription_activated', title: 'Premium is active', message: 'Your Premium subscription payment has been verified.' });
+    }
   }
 
   if (['payout.paid', 'payout.failed', 'payout.canceled'].includes(event.type)) {

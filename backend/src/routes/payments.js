@@ -9,6 +9,7 @@ import {
   recordQualifiedViewEvent,
   runCreatorSettlementJob,
   processPayout,
+  recordPointsActivityEvent,
 } from '../controllers/paymentController.js';
 
 const router = Router();
@@ -18,6 +19,7 @@ router.use(authenticate);
 router.post('/checkout/subscription', createSubscriptionCheckout);
 router.post('/checkout/tip', createTipCheckout);
 router.post('/engagement/qualified-view', recordQualifiedViewEvent);
+router.post('/engagement/points', recordPointsActivityEvent);
 router.post('/settlements/creator', authorize('ADMIN', 'MODERATOR', 'SUPER_ADMIN'), runCreatorSettlementJob);
 router.post('/payouts/process', authorize('ADMIN', 'MODERATOR', 'SUPER_ADMIN'), processPayout);
 router.post('/connect/onboarding-link', createConnectOnboardingLink);

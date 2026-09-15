@@ -42,6 +42,7 @@ create index if not exists idx_notifications_user_created
   on public.notifications(user_id, created_at desc);
 
 create or replace function public.record_qualified_view(
+  target_viewer_id uuid,
   target_video_id uuid,
   target_creator_id uuid,
   target_watch_seconds integer,
@@ -58,8 +59,8 @@ declare
   maximum_risk integer;
   completion numeric;
 begin
-  if auth.uid() is null then raise exception 'Authentication required'; end if;
-  if target_creator_id = auth.uid() then raise exception 'Self-views are not eligible'; end if;
+  if target_viewer_id is null then raise exception 'Authenticated viewer required'; end if;
+  if target_creator_id = target_viewer_id then raise exception 'Self-views are not eligible'; end if;
   if target_duration_seconds <= 0 or target_watch_seconds < 0 then raise exception 'Invalid watch metrics'; end if;
 
   select value into rules from public.economy_settings where key = 'qualified_view_rules';
@@ -72,7 +73,7 @@ begin
     viewer_id, creator_id, video_id, session_key, watch_seconds,
     video_duration_seconds, completion_percent, risk_score, status
   ) values (
-    auth.uid(), target_creator_id, target_video_id, target_session_key,
+    target_viewer_id, target_creator_id, target_video_id, target_session_key,
     target_watch_seconds, target_duration_seconds, completion, target_risk_score,
     case when target_watch_seconds >= minimum_seconds
       and completion >= minimum_percent

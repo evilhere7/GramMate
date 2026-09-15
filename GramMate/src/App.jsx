@@ -10,6 +10,8 @@ import CreatorProfilePage from './pages/Profile/CreatorProfilePage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import Login from './pages/Auth/Login';
 import ForbiddenPage from './pages/ForbiddenPage';
+import PremiumPage from './pages/Payments/PremiumPage';
+import PaymentStatusPage from './pages/Payments/PaymentStatusPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 function App() {
@@ -37,6 +39,7 @@ function App() {
 
         {/* 403 Access Denied */}
         <Route path="/403" element={<ForbiddenPage />} />
+        <Route path="/payment-status" element={<PaymentStatusPage />} />
 
         {/* Dedicated Admin Console (Protected & Strictly Restricted to evilmc777@gmail.com) */}
         <Route 
@@ -53,6 +56,14 @@ function App() {
           <Route index element={<VideoFeed />} />
           <Route path="feed" element={<VideoFeed />} />
           <Route path="discover" element={<VideoFeed isDiscoverMode={true} />} />
+          <Route
+            path="premium"
+            element={
+              <ProtectedRoute requireAuth>
+                <PremiumPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Wallet (Requires Login) */}
           <Route 

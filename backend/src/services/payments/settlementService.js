@@ -152,6 +152,21 @@ export async function runCreatorSettlement({ periodStart, periodEnd, calculation
   });
 
   for (const row of creatorRows) {
+    const { error: scoreError } = await client.from('creator_scores').upsert({
+      creator_id: row.creator_id,
+      settlement_id: settlement.id,
+      period_start: periodStart,
+      period_end: periodEnd,
+      qualified_watch_seconds: row.qualified_watch_seconds,
+      qualified_views: row.qualified_views,
+      completions: row.completions,
+      returning_viewers: row.returning_viewers,
+      total_score: row.total_score,
+      formula_snapshot: row.formula_snapshot,
+      fraud_status: row.fraud_status,
+    }, { onConflict: 'creator_id,period_start,period_end' });
+    if (scoreError) throw scoreError;
+
     const { data: earning, error: earningError } = await client.from('creator_earnings').insert({
       creator_id: row.creator_id,
       settlement_id: settlement.id,

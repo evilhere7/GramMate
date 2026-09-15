@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   BadgeDollarSign,
   Gift,
+  Crown,
   ArrowUpRight,
   LogOut,
   LogIn
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { icon: Wallet, label: 'Wallet', path: '/wallet' },
   { icon: BadgeDollarSign, label: 'Earnings', path: '/earnings' },
   { icon: Gift, label: 'Rewards', path: '/rewards' },
+  { icon: Crown, label: 'Premium', path: '/premium' },
   { icon: UserIcon, label: 'Profile', path: '/profile' },
 ];
 
