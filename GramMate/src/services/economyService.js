@@ -181,13 +181,13 @@ export async function fetchWithdrawalRequests(userId, limit = 20) {
   }
 }
 
-export async function submitWithdrawalRequest({ amountCents, payoutMethod, destinationLabel }) {
-  const idempotencyKey = `withdrawal:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+export async function submitWithdrawalRequest({ amountCents, payoutMethod, destinationLabel, idempotencyKey }) {
+  const requestKey = idempotencyKey || `withdrawal:${crypto.randomUUID()}`;
   const { data, error } = await supabase.rpc('request_wallet_withdrawal', {
     request_amount_cents: amountCents,
     request_payout_method: payoutMethod,
     request_destination_label: destinationLabel || null,
-    request_idempotency_key: idempotencyKey,
+    request_idempotency_key: requestKey,
   });
 
   if (error) {

@@ -1,17 +1,27 @@
-import Stripe from 'stripe';
 import { PrismaClient } from '@prisma/client';
 import config from '../config.js';
+import { getPaymentProvider } from '../services/payments/index.js';
+import { markWebhookProcessed, recordWebhookEvent } from '../services/payments/supabaseFinancialService.js';
+import {
+  getActiveSubscriptionPlan,
+  getProfileForPayment,
+  getTipByProviderReference,
+  insertCheckoutTip,
+  insertNotification,
+  recordPlatformRevenue,
+  recordSubscriptionFromStripe,
+  updateTipFromCheckout,
+} from '../services/payments/financialOperations.js';
 
 const prisma = new PrismaClient();
-const stripe = config.stripeSecretKey ? new Stripe(config.stripeSecretKey) : null;
-
-function requireStripe() {
-  if (!stripe) {
+function requireProvider() {
+  const provider = getPaymentProvider();
+  if (!provider) {
     const error = new Error('Stripe Connect is not configured on the server.');
     error.status = 503;
     throw error;
   }
-  return stripe;
+  return provider;
 }
 
 function serializeAccount(account) {
@@ -23,6 +33,90 @@ function serializeAccount(account) {
     payoutsEnabled: Boolean(account.payouts_enabled),
     requirementsDue: account.requirements?.currently_due || [],
   };
+}
+
+function requirePositiveMinorAmount(value, maximum = 1000000) {
+  const amount = Number(value);
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > maximum) {
+    const error = new Error('Invalid payment amount.');
+    error.status = 400;
+    throw error;
+  }
+  return amount;
+}
+
+export async function createSubscriptionCheckout(req, res) {
+  const provider = requireProvider();
+  const { planId } = req.body || {};
+  if (!planId) return res.status(400).json({ message: 'A subscription plan is required.' });
+
+  const [plan, profile] = await Promise.all([
+    getActiveSubscriptionPlan(planId),
+    getProfileForPayment(req.user.id),
+  ]);
+  if (!plan || !plan.provider_price_id) {
+    return res.status(404).json({ message: 'The selected subscription plan is unavailable.' });
+  }
+  if (!profile) return res.status(404).json({ message: 'Payment profile not found.' });
+
+  const session = await provider.createCheckout({
+    mode: 'subscription',
+    customer_email: profile.email,
+    line_items: [{ price: plan.provider_price_id, quantity: 1 }],
+    client_reference_id: req.user.id,
+    metadata: { grammate_user_id: req.user.id, plan_id: plan.id },
+    subscription_data: { metadata: { grammate_user_id: req.user.id, plan_id: plan.id } },
+    success_url: `${config.frontendUrl.replace(/\/$/, '')}/payment-status?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${config.frontendUrl.replace(/\/$/, '')}/premium?payment=canceled`,
+  });
+
+  return res.json({ sessionId: session.id, url: session.url });
+}
+
+export async function createTipCheckout(req, res) {
+  const provider = requireProvider();
+  const { creatorId, amountCents } = req.body || {};
+  if (!creatorId || creatorId === req.user.id) {
+    return res.status(400).json({ message: 'You cannot tip yourself.' });
+  }
+  const amount = requirePositiveMinorAmount(amountCents, 100000);
+  const profile = await getProfileForPayment(req.user.id);
+  if (!profile) return res.status(404).json({ message: 'Payment profile not found.' });
+
+  const platformFeeCents = Math.floor(amount * 0.2);
+  const creatorAmountCents = amount - platformFeeCents;
+  const session = await provider.createCheckout({
+    mode: 'payment',
+    customer_email: profile.email,
+    line_items: [{
+      price_data: {
+        currency: 'usd',
+        product_data: { name: 'GramMate creator tip' },
+        unit_amount: amount,
+      },
+      quantity: 1,
+    }],
+    client_reference_id: req.user.id,
+    metadata: {
+      grammate_user_id: req.user.id,
+      creator_id: creatorId,
+      platform_fee_cents: String(platformFeeCents),
+      creator_amount_cents: String(creatorAmountCents),
+    },
+    success_url: `${config.frontendUrl.replace(/\/$/, '')}/payment-status?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${config.frontendUrl.replace(/\/$/, '')}/profile/${creatorId}?tip=canceled`,
+  });
+
+  await insertCheckoutTip({
+    senderId: req.user.id,
+    creatorId,
+    amountCents: amount,
+    currency: 'USD',
+    providerReference: session.id,
+    platformFeeCents,
+    creatorAmountCents,
+  });
+  return res.json({ sessionId: session.id, url: session.url });
 }
 
 async function syncStripeAccount(userId, account) {
@@ -41,27 +135,22 @@ async function syncStripeAccount(userId, account) {
 }
 
 export async function createConnectOnboardingLink(req, res) {
-  const stripeClient = requireStripe();
+  const provider = requireProvider();
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
   if (!user) return res.status(404).json({ message: 'User not found' });
 
   let account;
   if (user.stripeAccountId) {
-    account = await stripeClient.accounts.retrieve(user.stripeAccountId);
+    account = await provider.getConnectedAccountStatus(user.stripeAccountId);
   } else {
-    account = await stripeClient.accounts.create({
-      type: 'express',
-      email: user.email,
-      metadata: { grammate_user_id: user.id },
-      capabilities: { transfers: { requested: true } },
-    });
+    account = await provider.createConnectedAccount({ email: user.email, metadata: { grammate_user_id: user.id } });
     await prisma.user.update({
       where: { id: user.id },
       data: { stripeAccountId: account.id, stripeAccountStatus: 'onboarding_required' },
     });
   }
 
-  const accountLink = await stripeClient.accountLinks.create({
+  const accountLink = await provider.createAccountLink({
     account: account.id,
     refresh_url: config.stripeRefreshUrl,
     return_url: config.stripeReturnUrl,
@@ -72,20 +161,20 @@ export async function createConnectOnboardingLink(req, res) {
 }
 
 export async function getConnectAccountStatus(req, res) {
-  const stripeClient = requireStripe();
+  const provider = requireProvider();
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
   if (!user) return res.status(404).json({ message: 'User not found' });
   if (!user.stripeAccountId) {
     return res.json({ account: null, status: 'not_started' });
   }
 
-  const account = await stripeClient.accounts.retrieve(user.stripeAccountId);
+  const account = await provider.getConnectedAccountStatus(user.stripeAccountId);
   await syncStripeAccount(user.id, account);
   return res.json({ account: serializeAccount(account) });
 }
 
 export async function handleStripeWebhook(req, res) {
-  const stripeClient = requireStripe();
+  const provider = requireProvider();
   if (!config.stripeWebhookSecret) {
     return res.status(503).json({ message: 'Stripe webhook signing secret is not configured.' });
   }
@@ -93,10 +182,13 @@ export async function handleStripeWebhook(req, res) {
   const signature = req.headers['stripe-signature'];
   let event;
   try {
-    event = stripeClient.webhooks.constructEvent(req.body, signature, config.stripeWebhookSecret);
+    event = provider.verifyWebhook(req.body, signature, config.stripeWebhookSecret);
   } catch (error) {
     return res.status(400).json({ message: `Invalid Stripe webhook: ${error.message}` });
   }
+
+  const storedEvent = await recordWebhookEvent({ provider: provider.name, event });
+  if (storedEvent.duplicate) return res.json({ received: true, duplicate: true });
 
   if (event.type === 'account.updated') {
     const account = event.data.object;
@@ -106,6 +198,54 @@ export async function handleStripeWebhook(req, res) {
       : await prisma.user.findFirst({ where: { stripeAccountId: account.id } });
     if (user) await syncStripeAccount(user.id, account);
   }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const userId = session.metadata?.grammate_user_id || session.client_reference_id;
+    if (session.mode === 'subscription' && session.subscription && userId) {
+      const subscription = await provider.getSubscription(session.subscription);
+      await recordSubscriptionFromStripe(subscription, userId, session.metadata?.plan_id);
+      await recordPlatformRevenue({
+        eventId: event.id,
+        revenueType: 'premium_subscription',
+        grossAmountCents: session.amount_total || 0,
+        reference: session.payment_intent || session.id,
+        currency: session.currency || 'usd',
+        metadata: { status: 'pending_reconciliation', subscription_id: subscription.id },
+      });
+      await insertNotification({ userId, type: 'subscription_activated', title: 'Premium payment received', message: 'Your Premium subscription is being verified.' });
+    }
+    if (session.mode === 'payment' && session.metadata?.creator_id) {
+      await updateTipFromCheckout({ session, status: 'confirmed' });
+      const tip = await getTipByProviderReference(session.id);
+      if (tip) {
+        await recordPlatformRevenue({
+          eventId: event.id,
+          revenueType: 'tip',
+          grossAmountCents: tip.gross_amount_cents,
+          feeCents: tip.platform_fee_cents,
+          currency: tip.currency,
+          reference: session.payment_intent || session.id,
+          metadata: { tip_id: tip.id, creator_id: tip.creator_id },
+        });
+        await insertNotification({ userId: tip.creator_id, type: 'tip_received', title: 'Tip received', message: 'A creator tip is pending settlement and verification.', metadata: { tip_id: tip.id } });
+      }
+    }
+  }
+
+  if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    const userId = subscription.metadata?.grammate_user_id;
+    if (userId) await recordSubscriptionFromStripe(subscription, userId, subscription.metadata?.plan_id);
+  }
+
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object;
+    const userId = invoice.subscription_details?.metadata?.grammate_user_id || invoice.metadata?.grammate_user_id;
+    if (userId) await insertNotification({ userId, type: 'payment_failed', title: 'Premium payment failed', message: 'Your Premium payment could not be completed.' });
+  }
+
+  await markWebhookProcessed(event.id);
 
   return res.json({ received: true });
 }

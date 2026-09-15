@@ -89,9 +89,7 @@ export async function uploadAvatar(file, userId) {
 
 export async function fetchFeedVideos({ limit = 20, offset = 0, category = null } = {}) {
   try {
-    let query = supabase
-      .from('videos')
-      .select(`
+    const feedColumns = `
         id,
         user_id,
         title,
@@ -106,7 +104,24 @@ export async function fetchFeedVideos({ limit = 20, offset = 0, category = null 
         comments_count,
         shares_count,
         created_at
-      `)
+      `;
+    const legacyFeedColumns = `
+        id,
+        user_id,
+        title,
+        description,
+        video_url,
+        thumbnail_url,
+        views_count,
+        likes_count,
+        comments_count,
+        shares_count,
+        created_at
+      `;
+
+    let query = supabase
+      .from('videos')
+      .select(feedColumns)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -114,7 +129,25 @@ export async function fetchFeedVideos({ limit = 20, offset = 0, category = null 
       query = query.eq('category', category);
     }
 
-    const { data: videos, error } = await query;
+    let { data: videos, error } = await query;
+    if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+      const legacyQuery = supabase
+        .from('videos')
+        .select(legacyFeedColumns)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      const legacyResult = await legacyQuery;
+      videos = (legacyResult.data || []).map((video) => ({
+        ...video,
+        category: 'General',
+        tags: [],
+        duration_seconds: null,
+      }));
+      if (category && category !== 'all') {
+        videos = videos.filter((video) => video.category === category);
+      }
+      error = legacyResult.error;
+    }
     if (error) throw error;
 
     if (!videos || videos.length === 0) {
