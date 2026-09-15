@@ -10,8 +10,13 @@ import {
   insertNotification,
   recordPlatformRevenue,
   recordSubscriptionFromStripe,
+  recordQualifiedView,
+  syncPayoutAccount,
+  updatePayoutFromProvider,
   updateTipFromCheckout,
 } from '../services/payments/financialOperations.js';
+import { runCreatorSettlement } from '../services/payments/settlementService.js';
+import { processAutomaticPayout } from '../services/payments/payoutService.js';
 
 const prisma = new PrismaClient();
 function requireProvider() {
@@ -134,6 +139,49 @@ async function syncStripeAccount(userId, account) {
   });
 }
 
+function getString(value, field) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    const error = new Error(`${field} is required.`);
+    error.status = 400;
+    throw error;
+  }
+  return value.trim();
+}
+
+function getSafeInteger(value, field, minimum = 0, maximum = 86400) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    const error = new Error(`Invalid ${field}.`);
+    error.status = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+export async function recordQualifiedViewEvent(req, res) {
+  const videoId = getString(req.body?.videoId, 'videoId');
+  const creatorId = getString(req.body?.creatorId, 'creatorId');
+  const sessionKey = getString(req.body?.sessionKey, 'sessionKey');
+  const watchSeconds = getSafeInteger(req.body?.watchSeconds, 'watchSeconds');
+  const durationSeconds = getSafeInteger(req.body?.durationSeconds, 'durationSeconds', 1);
+  const riskScore = getSafeInteger(req.body?.riskScore ?? 0, 'riskScore', 0, 100);
+  const event = await recordQualifiedView({ videoId, creatorId, watchSeconds, durationSeconds, sessionKey, riskScore });
+  return res.status(201).json({ event });
+}
+
+export async function runCreatorSettlementJob(req, res) {
+  const periodStart = getString(req.body?.periodStart, 'periodStart');
+  const periodEnd = getString(req.body?.periodEnd, 'periodEnd');
+  const result = await runCreatorSettlement({ periodStart, periodEnd, actorId: req.user.id });
+  return res.status(result.duplicate ? 200 : 201).json(result);
+}
+
+export async function processPayout(req, res) {
+  const userId = getString(req.body?.userId, 'userId');
+  const result = await processAutomaticPayout({ userId, settlementId: req.body?.settlementId || null, actorId: req.user.id });
+  return res.status(result.duplicate ? 200 : 201).json(result);
+}
+
 export async function createConnectOnboardingLink(req, res) {
   const provider = requireProvider();
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
@@ -197,6 +245,7 @@ export async function handleStripeWebhook(req, res) {
       ? await prisma.user.findUnique({ where: { id: userId } })
       : await prisma.user.findFirst({ where: { stripeAccountId: account.id } });
     if (user) await syncStripeAccount(user.id, account);
+    if (user) await syncPayoutAccount({ userId: user.id, providerAccountId: account.id, account });
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -243,6 +292,28 @@ export async function handleStripeWebhook(req, res) {
     const invoice = event.data.object;
     const userId = invoice.subscription_details?.metadata?.grammate_user_id || invoice.metadata?.grammate_user_id;
     if (userId) await insertNotification({ userId, type: 'payment_failed', title: 'Premium payment failed', message: 'Your Premium payment could not be completed.' });
+  }
+
+  if (['payout.paid', 'payout.failed', 'payout.canceled'].includes(event.type)) {
+    const providerPayout = event.data.object;
+    const statusMap = { 'payout.paid': 'paid', 'payout.failed': 'failed', 'payout.canceled': 'canceled' };
+    const payout = await updatePayoutFromProvider({
+      providerPayoutId: providerPayout.id,
+      status: statusMap[event.type],
+      failureCode: providerPayout.failure_code || null,
+      failureMessage: providerPayout.failure_message || null,
+    });
+    if (payout) {
+      await insertNotification({
+        userId: payout.user_id,
+        type: `payout_${statusMap[event.type]}`,
+        title: `Payout ${statusMap[event.type]}`,
+        message: statusMap[event.type] === 'paid'
+          ? 'Your payout has been confirmed by the provider.'
+          : 'Your payout was not completed. Your funds remain protected while the issue is reviewed.',
+        metadata: { payout_id: payout.id, amount_cents: payout.amount_cents },
+      });
+    }
   }
 
   await markWebhookProcessed(event.id);

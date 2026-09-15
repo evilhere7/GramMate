@@ -144,3 +144,58 @@ export async function insertNotification({ userId, type, title, message, metadat
 export async function getUserIdFromStripeMetadata(metadata = {}) {
   return metadata.grammate_user_id || metadata.user_id || null;
 }
+
+export async function recordQualifiedView({ videoId, creatorId, watchSeconds, durationSeconds, sessionKey, riskScore = 0 }) {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('record_qualified_view', {
+    target_video_id: videoId,
+    target_creator_id: creatorId,
+    target_watch_seconds: watchSeconds,
+    target_duration_seconds: durationSeconds,
+    target_session_key: sessionKey,
+    target_risk_score: riskScore,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function syncPayoutAccount({ userId, providerAccountId, account }) {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from('payout_accounts')
+    .upsert({
+      user_id: userId,
+      provider: 'stripe',
+      provider_account_id: providerAccountId,
+      status: account.details_submitted && account.payouts_enabled ? 'active' : 'pending',
+      onboarding_complete: Boolean(account.details_submitted),
+      payouts_enabled: Boolean(account.payouts_enabled),
+      charges_enabled: Boolean(account.charges_enabled),
+      country: account.country || null,
+      currency: account.default_currency || null,
+      requirements_due: account.requirements?.currently_due || [],
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,provider' })
+    .select('id,status,onboarding_complete,payouts_enabled,charges_enabled,requirements_due')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updatePayoutFromProvider({ providerPayoutId, status, failureCode = null, failureMessage = null }) {
+  const client = requireSupabase();
+  const { data: payout, error } = await client
+    .from('payouts')
+    .update({
+      status,
+      failure_code: failureCode,
+      failure_message: failureMessage,
+      processed_at: ['paid', 'failed', 'canceled'].includes(status) ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('provider_payout_id', providerPayoutId)
+    .select('id,user_id,amount_cents,status')
+    .maybeSingle();
+  if (error) throw error;
+  return payout;
+}
