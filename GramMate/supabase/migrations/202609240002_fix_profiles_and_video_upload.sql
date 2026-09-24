@@ -1,6 +1,8 @@
 -- ══════════════════════════════════════════════════════════════════════════════
--- GramMate Supabase Storage & Database Setup Migration
--- Run this script in the Supabase SQL Editor (Dashboard > SQL Editor > New Query > Run)
+-- GramMate Migration 202609240002: Fix Profiles & Video Upload Architecture
+-- Idempotent, non-destructive migration that establishes public.profiles,
+-- removes obsolete auth.users foreign key constraint for Firebase Auth users,
+-- and configures storage and video RLS policies.
 -- ══════════════════════════════════════════════════════════════════════════════
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

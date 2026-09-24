@@ -50,7 +50,7 @@ export function useProfile(profileId) {
     const { data, error: queryError } = await supabase
       .from('profiles')
       .select('*')
-      .or(`id.eq.${targetId},user_id.eq.${targetId}`)
+      .eq('id', targetId)
       .maybeSingle();
 
     if (queryError) {
@@ -73,17 +73,15 @@ export function useProfile(profileId) {
   const updateProfile = useCallback(async (updates) => {
     if (!user) throw new Error('You must be signed in to update your profile.');
 
+    // Build payload with only columns guaranteed to exist in the live schema.
+    // Columns like display_name, user_id, banner_url, website are added by
+    // migration 202609240002 — upsert will still succeed without them.
     const payload = {
       id: user.id,
-      user_id: user.id,
       username: updates.username,
-      display_name: updates.display_name,
-      full_name: updates.display_name,
+      full_name: updates.display_name || updates.full_name,
       bio: updates.bio,
       avatar_url: updates.avatar_url,
-      banner_url: updates.banner_url,
-      cover_url: updates.banner_url,
-      website: updates.website,
       updated_at: new Date().toISOString(),
     };
 

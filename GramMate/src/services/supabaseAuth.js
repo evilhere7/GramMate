@@ -122,13 +122,15 @@ export function onAuthChanged(callback) {
       if (!fetchErr && existingProfile) {
         profileData = existingProfile;
       } else {
-        // 2. Insert new profile into Supabase
-        const newProfile = {
+        // 2. Insert new profile into Supabase.
+        // Build the full payload and attempt insert. If a column doesn't exist yet
+        // (42703 – migration pending), retry with only the guaranteed base columns
+        // so authentication never hard-blocks the user.
+        const fullProfilePayload = {
           id: userUuid,
           username: cleanUsername,
           full_name: displayName,
-          display_name: displayName,
-          avatar_url: photoURL,
+          avatar_url: photoURL || null,
           bio: 'Hey there! I am creating on GramMate.',
           role: isAdmin ? 'admin' : 'viewer',
           followers_count: 0,
@@ -138,15 +140,41 @@ export function onAuthChanged(callback) {
           updated_at: new Date().toISOString(),
         };
 
-        const { data: inserted, error: insertErr } = await supabase
+        let { data: inserted, error: insertErr } = await supabase
           .from('profiles')
-          .insert(newProfile)
+          .insert(fullProfilePayload)
           .select()
           .maybeSingle();
 
+        // If column error (schema mismatch), retry with absolute minimum columns
+        if (insertErr && (insertErr.code === '42703' || insertErr.code === 'PGRST204')) {
+          console.warn('[supabaseAuth] Profile insert column mismatch, retrying with base columns:', insertErr.message);
+          const basePayload = {
+            id: userUuid,
+            username: cleanUsername,
+            full_name: displayName,
+            avatar_url: photoURL || null,
+            role: isAdmin ? 'admin' : 'viewer',
+            followers_count: 0,
+            following_count: 0,
+            is_verified: isAdmin,
+          };
+          const retryResult = await supabase
+            .from('profiles')
+            .insert(basePayload)
+            .select()
+            .maybeSingle();
+          inserted = retryResult.data;
+          insertErr = retryResult.error;
+        }
+
+        const newProfile = { ...fullProfilePayload };
         if (!insertErr && inserted) {
           profileData = inserted;
         } else {
+          if (insertErr) {
+            console.warn('[supabaseAuth] Profile insert warning:', insertErr.message || insertErr);
+          }
           profileData = newProfile;
         }
       }
@@ -156,8 +184,7 @@ export function onAuthChanged(callback) {
         id: userUuid,
         username: cleanUsername,
         full_name: displayName,
-        display_name: displayName,
-        avatar_url: photoURL,
+        avatar_url: photoURL || null,
         role: isAdmin ? 'admin' : 'viewer',
         followers_count: 0,
         following_count: 0,

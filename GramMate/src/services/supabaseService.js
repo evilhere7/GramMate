@@ -161,7 +161,7 @@ export async function fetchFeedVideos({ limit = 20, offset = 0, category = null 
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, username, full_name, display_name, avatar_url, is_verified')
+        .select('id, username, full_name, avatar_url, is_verified')
         .in('id', userIds);
 
       if (profiles) {
@@ -522,7 +522,7 @@ export async function fetchComments(videoId) {
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, username, full_name, display_name, avatar_url')
+        .select('id, username, full_name, avatar_url')
         .in('id', userIds);
 
       if (profiles) {
