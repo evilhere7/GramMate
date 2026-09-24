@@ -1,9 +1,9 @@
 -- ══════════════════════════════════════════════════════════════════════════════
--- GramMate Supabase Storage & Database Setup Migration
--- Run this script in the Supabase SQL Editor (Dashboard > SQL Editor > New Query > Run)
+-- GramMate Migration 202609240001: Video Upload, Storage, and RLS Alignment
+-- Idempotent and additive migration for videos, storage, and user profile sync.
 -- ══════════════════════════════════════════════════════════════════════════════
 
--- 1. Ensure the storage buckets exist with public read access
+-- 1. Ensure storage buckets exist
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
   ('videos', 'videos', true, 524288000, ARRAY['video/mp4', 'video/mpeg', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/ogg']),
@@ -13,7 +13,7 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- 2. Storage policies for the videos bucket.
+-- 2. Storage policies for videos bucket
 DROP POLICY IF EXISTS "Videos are publicly readable" ON storage.objects;
 CREATE POLICY "Videos are publicly readable"
 ON storage.objects
@@ -61,7 +61,7 @@ USING (
   )
 );
 
--- 3. Storage policies for avatars bucket.
+-- 3. Storage policies for avatars bucket
 DROP POLICY IF EXISTS "Avatars are publicly readable" ON storage.objects;
 CREATE POLICY "Avatars are publicly readable"
 ON storage.objects
@@ -109,7 +109,7 @@ USING (
   )
 );
 
--- 4. Ensure public.videos columns and policies
+-- 4. public.videos schema and policies
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General';
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
@@ -158,7 +158,7 @@ USING (
   OR (auth.role() = 'anon')
 );
 
--- 5. Ensure public.profiles policies
+-- 5. public.profiles policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public read profiles" ON public.profiles;
@@ -185,42 +185,5 @@ ON public.profiles
 FOR UPDATE
 USING (
   (auth.role() = 'authenticated' AND id = auth.uid())
-  OR (auth.role() = 'anon')
-);
-
--- 6. Ensure comments & likes policies
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Comments are viewable" ON public.comments;
-CREATE POLICY "Comments are viewable" ON public.comments FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Users insert own comments" ON public.comments;
-DROP POLICY IF EXISTS "Allow comment insert" ON public.comments;
-CREATE POLICY "Users insert own comments" ON public.comments FOR INSERT WITH CHECK (
-  (auth.role() = 'authenticated' AND user_id = auth.uid())
-  OR (auth.role() = 'anon' AND EXISTS (SELECT 1 FROM public.profiles WHERE id = user_id))
-);
-
-DROP POLICY IF EXISTS "Users delete own comments" ON public.comments;
-DROP POLICY IF EXISTS "Allow comment delete" ON public.comments;
-CREATE POLICY "Users delete own comments" ON public.comments FOR DELETE USING (
-  (auth.role() = 'authenticated' AND user_id = auth.uid())
-  OR (auth.role() = 'anon')
-);
-
-ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Likes are viewable" ON public.likes;
-CREATE POLICY "Likes are viewable" ON public.likes FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Users insert own likes" ON public.likes;
-DROP POLICY IF EXISTS "Allow like insert" ON public.likes;
-CREATE POLICY "Users insert own likes" ON public.likes FOR INSERT WITH CHECK (
-  (auth.role() = 'authenticated' AND user_id = auth.uid())
-  OR (auth.role() = 'anon' AND EXISTS (SELECT 1 FROM public.profiles WHERE id = user_id))
-);
-
-DROP POLICY IF EXISTS "Users delete own likes" ON public.likes;
-DROP POLICY IF EXISTS "Allow like delete" ON public.likes;
-CREATE POLICY "Users delete own likes" ON public.likes FOR DELETE USING (
-  (auth.role() = 'authenticated' AND user_id = auth.uid())
   OR (auth.role() = 'anon')
 );

@@ -49,12 +49,24 @@ export function AuthProvider({ children }) {
   const [authProcessing, setAuthProcessing] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }, 5000);
+
     const unsubscribe = supabaseAuth.onAuthChanged((authenticatedUser) => {
-      setUser(authenticatedUser);
-      setLoading(false);
+      clearTimeout(safetyTimer);
+      if (isMounted) {
+        setUser(authenticatedUser);
+        setLoading(false);
+      }
     });
 
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }

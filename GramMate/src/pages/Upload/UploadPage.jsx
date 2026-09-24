@@ -34,9 +34,11 @@ function formatBytes(bytes, decimals = 1) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+// Upload Pipeline Stages (idle, selecting, validating, uploading, processing, saving, success, error, cancelled)
 export default function UploadPage() {
   const [videoFile, setVideoFile] = useState(null);
   const [videoPreview, setVideoPreview] = useState(null);
+  const [previewError, setPreviewError] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -44,16 +46,16 @@ export default function UploadPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Upload States
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStage, setUploadStage] = useState('idle'); // idle | selecting | validating | uploading | processing | saving | success | error | cancelled
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState('');
-  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadedVideoId, setUploadedVideoId] = useState(null);
 
   const fileInputRef = useRef(null);
-  const progressIntervalRef = useRef(null);
   const { user, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+
+  const isUploading = ['uploading', 'processing', 'saving'].includes(uploadStage);
 
   // Cleanup object URL on unmount or file change
   useEffect(() => {
@@ -61,23 +63,40 @@ export default function UploadPage() {
       if (videoPreview) {
         URL.revokeObjectURL(videoPreview);
       }
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
     };
   }, [videoPreview]);
 
   const validateAndSetFile = (file) => {
-    if (!file) return;
+    if (!file) {
+      setUploadStage('idle');
+      return;
+    }
 
-    if (!file.type.startsWith('video/')) {
-      setErrorMsg('Please select a valid video file (MP4, WebM, or MOV).');
+    setUploadStage('validating');
+    setPreviewError(false);
+
+    const fileName = (file.name || '').toLowerCase();
+    const fileExt = fileName.split('.').pop() || '';
+    const allowedExtensions = ['mp4', 'webm', 'mov', 'mkv', 'm4v', 'mpeg', 'mpg', 'ogg'];
+    const hasValidType = file.type && file.type.startsWith('video/');
+    const hasValidExt = allowedExtensions.includes(fileExt);
+
+    if (!hasValidType && !hasValidExt) {
+      setErrorMsg('Please select a valid video file (MP4, WebM, MOV, or MKV).');
+      setUploadStage('error');
       return;
     }
 
     // 500MB platform limit
     if (file.size > 500 * 1024 * 1024) {
-      setErrorMsg('Video file size exceeds the 500MB platform limit.');
+      setErrorMsg('Video file size exceeds the 500MB platform limit. Please choose a smaller file.');
+      setUploadStage('error');
+      return;
+    }
+
+    if (file.size <= 0) {
+      setErrorMsg('Selected video file is empty. Please choose a valid file.');
+      setUploadStage('error');
       return;
     }
 
@@ -87,8 +106,13 @@ export default function UploadPage() {
 
     setVideoFile(file);
     setErrorMsg('');
-    const previewUrl = URL.createObjectURL(file);
-    setVideoPreview(previewUrl);
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      setVideoPreview(previewUrl);
+    } catch {
+      setPreviewError(true);
+    }
+    setUploadStage('idle');
   };
 
   const handleFileChange = (e) => {
@@ -104,6 +128,10 @@ export default function UploadPage() {
   };
 
   const clearSelectedFile = () => {
+    if (isUploading) {
+      setUploadStage('cancelled');
+      toast.info('Upload cancelled.');
+    }
     setVideoFile(null);
     if (videoPreview) {
       URL.revokeObjectURL(videoPreview);
@@ -113,6 +141,10 @@ export default function UploadPage() {
       fileInputRef.current.value = '';
     }
     setErrorMsg('');
+    setUploadProgress(0);
+    setUploadStatusText('');
+    setPreviewError(false);
+    setUploadStage('idle');
   };
 
   const handleSubmit = async (e) => {
@@ -125,59 +157,49 @@ export default function UploadPage() {
 
     if (!videoFile) {
       setErrorMsg('Please choose a video to upload.');
+      setUploadStage('error');
       return;
     }
     if (!title.trim()) {
       setErrorMsg('A video title is required.');
+      setUploadStage('error');
       return;
     }
 
-    setIsUploading(true);
+    setUploadStage('uploading');
     setErrorMsg('');
     setUploadProgress(10);
     setUploadStatusText('Preparing video for upload...');
-
-    // Progress simulation while network transfer completes
-    progressIntervalRef.current = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev < 85) {
-          const step = Math.floor(Math.random() * 8) + 4;
-          const next = Math.min(prev + step, 85);
-          if (next > 40 && next < 70) {
-            setUploadStatusText('Uploading to GramMate storage...');
-          } else if (next >= 70) {
-            setUploadStatusText('Processing and validating video...');
-          }
-          return next;
-        }
-        return prev;
-      });
-    }, 300);
 
     try {
       const result = await uploadVideo(videoFile, user.id, {
         title: title.trim(),
         description: description.trim(),
         category,
+        onProgress: (pct) => {
+          setUploadProgress(pct);
+        },
+        onStatus: (statusText) => {
+          setUploadStatusText(statusText);
+          if (statusText.toLowerCase().includes('poster') || statusText.toLowerCase().includes('processing')) {
+            setUploadStage('processing');
+          } else if (statusText.toLowerCase().includes('publishing') || statusText.toLowerCase().includes('database')) {
+            setUploadStage('saving');
+          }
+        },
       });
 
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
       setUploadProgress(100);
       setUploadStatusText('Published successfully!');
       setUploadedVideoId(result?.id);
-      setUploadSuccess(true);
+      setUploadStage('success');
       toast.success('Your video is live on GramMate!');
     } catch (err) {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-      console.error('[UploadPage] Upload error:', err);
-      setErrorMsg(err.message || 'Unable to upload your video right now. Please try again.');
-      toast.error('Upload failed. Please try again.');
-    } finally {
-      setIsUploading(false);
+      console.error('[UploadPage] Upload pipeline error:', err);
+      setUploadStage('error');
+      const friendly = err?.message || 'Unable to upload your video right now. Please try again.';
+      setErrorMsg(friendly);
+      toast.error('Upload failed. See details below.');
     }
   };
 
@@ -206,7 +228,7 @@ export default function UploadPage() {
     );
   }
 
-  if (uploadSuccess) {
+  if (uploadStage === 'success') {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <div className="w-full max-w-md gm-card p-8 text-center border border-[var(--gm-border-strong)] bg-[var(--gm-surface)] shadow-xl">
@@ -215,7 +237,7 @@ export default function UploadPage() {
           </div>
           <h2 className="text-xl font-bold mb-2 text-[var(--gm-text)]">Video Published!</h2>
           <p className="text-xs text-[var(--gm-text-secondary)] leading-relaxed mb-6">
-            Your short video has been uploaded successfully and is now live on GramMate.
+            Your short video has been uploaded successfully and is now live in the GramMate community feed.
           </p>
 
           <div className="space-y-3">
@@ -229,9 +251,7 @@ export default function UploadPage() {
                 clearSelectedFile();
                 setTitle('');
                 setDescription('');
-                setUploadProgress(0);
-                setUploadStatusText('');
-                setUploadSuccess(false);
+                setUploadStage('idle');
               }}
               className="gm-btn-secondary w-full text-xs py-2.5 flex items-center justify-center gap-2 font-semibold"
             >
@@ -288,17 +308,29 @@ export default function UploadPage() {
 
           {videoPreview ? (
             <div className="space-y-3">
-              <div className="relative aspect-[9/16] max-h-[460px] w-full rounded-xl overflow-hidden bg-black border border-[var(--gm-border-strong)] mx-auto shadow-md">
-                <video
-                  src={videoPreview}
-                  controls
-                  className="w-full h-full object-contain"
-                />
+              <div className="relative aspect-[9/16] max-h-[460px] w-full rounded-xl overflow-hidden bg-black border border-[var(--gm-border-strong)] mx-auto shadow-md flex items-center justify-center">
+                {previewError ? (
+                  <div className="p-6 text-center text-xs text-[var(--gm-text-secondary)] space-y-2">
+                    <VideoIcon size={32} className="mx-auto text-[var(--gm-brand)] opacity-80" />
+                    <p className="font-semibold text-[var(--gm-text)]">{videoFile.name}</p>
+                    <p className="text-[11px] text-[var(--gm-text-tertiary)]">
+                      In-browser preview not supported for this codec/container ({videoFile.type || 'video'}), but file is ready to upload.
+                    </p>
+                  </div>
+                ) : (
+                  <video
+                    src={videoPreview}
+                    controls
+                    playsInline
+                    onError={() => setPreviewError(true)}
+                    className="w-full h-full object-contain"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={clearSelectedFile}
                   disabled={isUploading}
-                  className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors disabled:opacity-50"
+                  className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors disabled:opacity-50 z-10"
                   title="Remove video"
                 >
                   <X size={16} />

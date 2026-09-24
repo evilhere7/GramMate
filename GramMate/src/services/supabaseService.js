@@ -202,72 +202,196 @@ export async function fetchUserVideos(userId) {
   }
 }
 
-export async function uploadVideo(file, userId, { title, description, category, tags = [] } = {}) {
-  if (!file) throw new Error('No video file provided');
+export async function extractVideoThumbnail(file, seekTimeSeconds = 0.5) {
+  if (typeof window === 'undefined' || !window.document) return null;
+  return new Promise((resolve) => {
+    try {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      const objectUrl = URL.createObjectURL(file);
+      video.src = objectUrl;
+
+      const cleanup = () => {
+        URL.revokeObjectURL(objectUrl);
+        video.removeAttribute('src');
+        video.load();
+      };
+
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve(null);
+      }, 5000);
+
+      video.onloadeddata = () => {
+        video.currentTime = Math.min(seekTimeSeconds, Math.max(0, (video.duration || 1) / 2));
+      };
+
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.min(video.videoWidth || 640, 720);
+          canvas.height = Math.round(canvas.width * ((video.videoHeight || 360) / (video.videoWidth || 640)));
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              clearTimeout(timer);
+              cleanup();
+              resolve(blob);
+            }, 'image/jpeg', 0.82);
+            return;
+          }
+        } catch {
+          // Canvas capture failure (cross-origin / codec limitation)
+        }
+        clearTimeout(timer);
+        cleanup();
+        resolve(null);
+      };
+
+      video.onerror = () => {
+        clearTimeout(timer);
+        cleanup();
+        resolve(null);
+      };
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export async function uploadVideo(
+  file,
+  userId,
+  { title, description, category, tags = [], onProgress, onStatus } = {}
+) {
+  if (!file) throw new Error('No video file provided.');
   if (!userId) throw new Error('You must be signed in to upload a video.');
 
-  const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/mpeg', 'video/ogg'];
-  if (!file.type || !allowedTypes.includes(file.type)) {
-    throw new Error('Please choose a supported video format: MP4, WebM, MOV, or MKV.');
+  const reportStatus = (text) => {
+    if (typeof onStatus === 'function') onStatus(text);
+  };
+  const reportProgress = (pct) => {
+    if (typeof onProgress === 'function') onProgress(pct);
+  };
+
+  reportStatus('Validating video file...');
+  reportProgress(10);
+
+  const fileName = (file.name || 'video.mp4').toLowerCase();
+  const fileExt = fileName.split('.').pop() || 'mp4';
+  const allowedExtensions = ['mp4', 'webm', 'mov', 'mkv', 'm4v', 'mpeg', 'mpg', 'ogg'];
+  const allowedTypes = [
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+    'video/x-matroska',
+    'video/mpeg',
+    'video/ogg',
+    'video/x-m4v',
+  ];
+
+  const hasValidType = file.type && (file.type.startsWith('video/') || allowedTypes.includes(file.type));
+  const hasValidExt = allowedExtensions.includes(fileExt);
+
+  if (!hasValidType && !hasValidExt) {
+    throw new Error('Please choose a supported video file (MP4, WebM, MOV, or MKV).');
   }
 
   if (file.size <= 0) {
     throw new Error('The selected video file is empty. Please choose a valid video.');
   }
 
+  // 500MB platform limit
   if (file.size > 500 * 1024 * 1024) {
-    throw new Error('Video file is too large. Please choose a file under 500 MB.');
+    throw new Error('Video file size exceeds the 500MB limit. Please choose a smaller file.');
   }
 
   const bucket = 'videos';
-  const ext = file.name.split('.').pop() || 'mp4';
-  const filePath = `${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+  const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID 
+    ? crypto.randomUUID() 
+    : `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const videoFilePath = `${userId}/${uniqueId}.${fileExt}`;
 
-  const { data: bucketData, error: bucketErr } = await supabase.storage.getBucket(bucket);
-  if (bucketErr || !bucketData) {
-    const message = `Supabase storage bucket '${bucket}' does not exist or is not accessible. Run the SQL in supabase/storage_setup.sql in the Supabase SQL Editor to create the bucket and policies.`;
-    console.error('[supabaseService] Missing video bucket:', bucketErr || message);
-    throw new Error(message);
+  // 1. Generate video thumbnail non-blockingly
+  reportStatus('Generating video poster preview...');
+  reportProgress(25);
+  let thumbnailUrl = null;
+  try {
+    const thumbBlob = await extractVideoThumbnail(file, 0.5);
+    if (thumbBlob) {
+      const thumbPath = `${userId}/${uniqueId}_thumb.jpg`;
+      const { error: thumbErr } = await supabase.storage
+        .from(bucket)
+        .upload(thumbPath, thumbBlob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: true });
+
+      if (!thumbErr) {
+        const { data: thumbUrlData } = supabase.storage.from(bucket).getPublicUrl(thumbPath);
+        thumbnailUrl = thumbUrlData?.publicUrl || null;
+      }
+    }
+  } catch (thumbEx) {
+    console.warn('[supabaseService] Thumbnail capture skipped/fallback:', thumbEx?.message || thumbEx);
   }
 
-  // Upload to Supabase storage
+  // 2. Upload video file directly to Supabase Storage
+  reportStatus('Uploading video to storage...');
+  reportProgress(50);
+
   const { error: uploadErr } = await supabase.storage
     .from(bucket)
-    .upload(filePath, file, { cacheControl: '31536000', upsert: false });
+    .upload(videoFilePath, file, {
+      contentType: file.type || `video/${fileExt}`,
+      cacheControl: '31536000',
+      upsert: false,
+    });
 
   if (uploadErr) {
     console.error('[supabaseService] Supabase video storage upload error:', uploadErr);
-    const msg = uploadErr.message || '';
-    const normalized = msg.toLowerCase();
+    const msg = (uploadErr.message || '').toLowerCase();
 
-    if (normalized.includes('bucket not found') || normalized.includes('does not exist')) {
-      throw new Error(`Supabase storage bucket '${bucket}' is missing. Run the SQL in supabase/storage_setup.sql in your Supabase dashboard to create it.`);
+    if (msg.includes('bucket not found') || msg.includes('does not exist') || uploadErr.statusCode === '404') {
+      throw new Error(
+        `Storage bucket '${bucket}' was not found. Please ensure the 'videos' bucket exists in Supabase Storage with public read access (run supabase/storage_setup.sql in the Supabase SQL Editor).`
+      );
     }
-    if (normalized.includes('row-level security') || normalized.includes('policy') || uploadErr.statusCode === '403') {
-      throw new Error('Storage permission error. Please ensure the videos bucket and storage policies are configured correctly in Supabase.');
+    if (msg.includes('row-level security') || msg.includes('policy') || uploadErr.statusCode === '403') {
+      throw new Error(
+        'Upload permission error: Supabase storage policy prevented saving the video. Ensure the videos bucket insert policy allows authenticated creators to upload (run supabase/storage_setup.sql).'
+      );
     }
-    if (normalized.includes('not authorized') || normalized.includes('permission denied')) {
-      throw new Error('You are not allowed to upload to the videos bucket. Please sign in again and confirm your storage permissions.');
-    }
-    throw new Error(msg || 'Unable to upload video file to storage. Please try again.');
+    throw new Error(uploadErr.message || 'Unable to upload video file to storage. Please check your network connection.');
   }
 
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
-  const publicUrl = urlData?.publicUrl || '';
+  reportStatus('Finalizing video URL and metadata...');
+  reportProgress(80);
+
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(videoFilePath);
+  const publicVideoUrl = urlData?.publicUrl || '';
+  if (!publicVideoUrl) {
+    throw new Error('Failed to resolve public storage URL for the uploaded video.');
+  }
+
+  // 3. Database insert into public.videos
+  reportStatus('Publishing video to GramMate feed...');
+  reportProgress(90);
 
   const sanitizedTags = Array.isArray(tags) ? tags.filter(Boolean).slice(0, 10) : [];
   const fullVideoRow = {
     user_id: userId,
-    title: title || 'Untitled Video',
-    description: description || '',
-    video_url: publicUrl,
-    thumbnail_url: null,
+    title: (title || 'Untitled Video').trim(),
+    description: (description || '').trim(),
+    video_url: publicVideoUrl,
+    thumbnail_url: thumbnailUrl || publicVideoUrl,
     category: category || 'General',
     tags: sanitizedTags,
     views_count: 0,
     likes_count: 0,
     comments_count: 0,
     shares_count: 0,
+    is_active: true,
     created_at: new Date().toISOString(),
   };
 
@@ -278,17 +402,18 @@ export async function uploadVideo(file, userId, { title, description, category, 
     .single();
 
   if (dbErr && (dbErr.code === 'PGRST204' || dbErr.message?.includes('category') || dbErr.message?.includes('tags'))) {
-    console.warn('[supabaseService] Retrying video insert without category/tags schema dependency...');
+    console.warn('[supabaseService] Retrying video insert with base columns...');
     const baseVideoRow = {
       user_id: userId,
-      title: title || 'Untitled Video',
-      description: description || '',
-      video_url: publicUrl,
-      thumbnail_url: null,
+      title: (title || 'Untitled Video').trim(),
+      description: (description || '').trim(),
+      video_url: publicVideoUrl,
+      thumbnail_url: thumbnailUrl || publicVideoUrl,
       views_count: 0,
       likes_count: 0,
       comments_count: 0,
       shares_count: 0,
+      is_active: true,
       created_at: new Date().toISOString(),
     };
     const retryResult = await supabase
@@ -301,14 +426,23 @@ export async function uploadVideo(file, userId, { title, description, category, 
   }
 
   if (dbErr) {
-    console.error('[supabaseService] Failed to insert video into database:', dbErr);
-    await supabase.storage.from(bucket).remove([filePath]).catch(() => {});
-    if (dbErr.code === '42501' || dbErr.message?.toLowerCase().includes('policy')) {
-      throw new Error('Database permission error: your video upload was blocked by Supabase row-level security. Review the videos table policies and make sure the creator is allowed to insert rows.');
+    console.error('[supabaseService] Database insert error for video:', dbErr);
+    // Cleanup uploaded storage file so no orphaned files remain
+    await supabase.storage.from(bucket).remove([videoFilePath]).catch(() => {});
+    if (thumbnailUrl) {
+      await supabase.storage.from(bucket).remove([`${userId}/${uniqueId}_thumb.jpg`]).catch(() => {});
     }
-    throw new Error(dbErr.message || 'Unable to publish video to database.');
+
+    if (dbErr.code === '42501' || dbErr.message?.toLowerCase().includes('policy')) {
+      throw new Error(
+        'Database permission error: Supabase Row Level Security blocked video publishing. Run supabase/storage_setup.sql in the Supabase SQL editor to ensure the videos table allows creators to insert their videos.'
+      );
+    }
+    throw new Error(dbErr.message || 'Unable to publish video to the GramMate database.');
   }
 
+  reportStatus('Published successfully!');
+  reportProgress(100);
   return insertedVideo;
 }
 

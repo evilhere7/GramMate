@@ -361,6 +361,7 @@ function FeedItem({
   isAuthenticated
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(video.likes_count || 0);
   const videoRef = useRef(null);
@@ -383,8 +384,11 @@ function FeedItem({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            videoRef.current?.play().catch(() => {});
-            setIsPlaying(true);
+            videoRef.current?.play().then(() => {
+              setIsPlaying(true);
+            }).catch(() => {
+              setIsPlaying(false);
+            });
           } else {
             videoRef.current?.pause();
             setIsPlaying(false);
@@ -406,8 +410,12 @@ function FeedItem({
       videoRef.current.pause();
       setIsPlaying(false);
     } else {
-      videoRef.current.play().catch(() => {});
-      setIsPlaying(true);
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((e) => {
+        console.warn('[VideoFeed] Playback prevented:', e);
+        setIsPlaying(false);
+      });
     }
   };
 
@@ -483,19 +491,38 @@ function FeedItem({
 
       {/* Video Viewport */}
       <div className="relative aspect-[9/16] max-h-[580px] bg-black flex items-center justify-center overflow-hidden">
-        <video
-          ref={videoRef}
-          src={video.video_url}
-          poster={video.thumbnail_url}
-          loop
-          muted={muted}
-          playsInline
-          onClick={handleVideoClick}
-          className="w-full h-full object-contain cursor-pointer"
-        />
+        {hasPlaybackError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[var(--gm-surface-elevated)] text-[var(--gm-text)] space-y-3 z-10">
+            <AlertTriangle size={32} className="text-amber-400" />
+            <p className="text-xs font-bold">Unable to play video format</p>
+            <p className="text-[11px] text-[var(--gm-text-secondary)]">Your browser or device could not decode this video stream.</p>
+            <button
+              onClick={() => {
+                setHasPlaybackError(false);
+                videoRef.current?.load();
+              }}
+              className="gm-btn-secondary text-xs px-3 py-1.5"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            src={video.video_url}
+            poster={video.thumbnail_url || undefined}
+            loop
+            muted={muted}
+            playsInline
+            preload="metadata"
+            onClick={handleVideoClick}
+            onError={() => setHasPlaybackError(true)}
+            className="w-full h-full object-contain cursor-pointer"
+          />
+        )}
 
         {/* Play/Pause Overlay Indicator */}
-        {!isPlaying && (
+        {!isPlaying && !hasPlaybackError && (
           <div 
             onClick={handleVideoClick}
             className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer pointer-events-auto"
